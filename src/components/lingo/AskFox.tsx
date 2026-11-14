@@ -10,6 +10,7 @@ import { Message, MessageContent, MessageResponse } from "@/components/ai-elemen
 import { PromptInput, PromptInputFooter, PromptInputSubmit, PromptInputTextarea, type PromptInputMessage } from "@/components/ai-elements/prompt-input";
 import { Shimmer } from "@/components/ai-elements/shimmer";
 import fox from "@/assets/fox.png";
+import { FoxMascot } from "./FoxMascot";
 
 type Props = { questionKey: string; answer: string; wasCorrect: boolean; onClose: () => void };
 type Status = "ready" | "submitted" | "streaming" | "error";
@@ -36,8 +37,8 @@ export function AskFox(props: Props) {
         className="flex h-[82dvh] w-full max-w-md animate-slide-up flex-col rounded-t-[2rem] bg-card shadow-elevated sm:h-[680px] sm:rounded-[2rem]"
       >
         <header className="flex items-center gap-3 border-b-2 border-border px-5 py-4">
-          <div className="grid size-12 place-items-center rounded-2xl bg-primary/15">
-            <img src={fox} alt="" width={40} height={40} className="size-10" />
+          <div className="grid size-12 place-items-center rounded-2xl bg-primary/15 ring-1 ring-primary/25">
+            <FoxMascot mood="speaking" size="sm" />
           </div>
           <div className="flex-1">
             <h2 className="font-display text-lg font-bold text-secondary">{t("askFoxTitle")}</h2>

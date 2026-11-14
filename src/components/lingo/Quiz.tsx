@@ -26,6 +26,7 @@ import { AdBanner } from "./AdBanner";
 import { RewardedAd } from "./RewardedAd";
 import { AskFox } from "./AskFox";
 import fox from "@/assets/fox.png";
+import { FoxMascot } from "./FoxMascot";
 
 type Status = "answering" | "correct" | "wrong";
 
@@ -156,10 +157,10 @@ export function Quiz({ lessonId, practice }: { lessonId?: string; practice?: Pra
 
       <div key={`${i}-${q.type}`} className="flex-1 px-5 pt-8 animate-in fade-in slide-in-from-bottom-4 duration-300">
         <h2 className="text-2xl font-bold text-secondary">{t(PROMPT[q.type])}</h2>
-        {q.type === "mc" && <MC q={q} target={course.target} native={course.native} pick={pick} onPick={setPick} disabled={disabled} />}
+        {q.type === "mc" && <MC q={q} target={course.target} native={course.native} pick={pick} onPick={setPick} disabled={disabled} status={status} />}
         {q.type === "listen" && <Listen q={q} target={course.target} pick={pick} onPick={setPick} disabled={disabled} />}
-        {q.type === "builder" && <Builder q={q} target={course.target} native={course.native} built={built} setBuilt={setBuilt} disabled={disabled} shake={status === "wrong"} />}
-        {q.type === "type" && <TypeIn q={q} target={course.target} value={typed} onChange={setTyped} onSubmit={check} disabled={disabled} shake={status === "wrong"} />}
+        {q.type === "builder" && <Builder q={q} target={course.target} native={course.native} built={built} setBuilt={setBuilt} disabled={disabled} shake={status === "wrong"} status={status} />}
+        {q.type === "type" && <TypeIn q={q} target={course.target} value={typed} onChange={setTyped} onSubmit={check} disabled={disabled} shake={status === "wrong"} status={status} />}
         {q.type === "match" && <Match q={q} target={course.target} native={course.native} onDone={() => setMatchDone(true)} disabled={disabled} />}
       </div>
 
@@ -168,17 +169,31 @@ export function Quiz({ lessonId, practice }: { lessonId?: string; practice?: Pra
         status === "correct" && "animate-slide-up border-transparent bg-success-soft",
         status === "wrong" && "animate-slide-up border-transparent bg-destructive-soft")}>
         {status === "correct" && (
-          <div className="mb-4 flex items-center gap-3 text-success-shade">
-            <CheckCircle2 className="size-9 fill-success text-primary-foreground" />
-            <p className="font-display text-2xl font-bold">{t("amazing")}</p>
+          <div className="mb-4 flex items-center gap-3 text-success-shade animate-bounce-celebrate">
+            <div className="relative shrink-0">
+              <FoxMascot mood="celebrate" size="sm" />
+              <span className="absolute -top-1 -end-1 flex size-4 items-center justify-center rounded-full bg-success text-[10px] font-bold text-primary-foreground">
+                ✓
+              </span>
+            </div>
+            <div>
+              <p className="font-display text-2xl font-bold">{t("amazing")}</p>
+              <p className="text-xs font-semibold opacity-90">إجابة متقنة وممتازة!</p>
+            </div>
           </div>
         )}
         {status === "wrong" && (
-          <div className="mb-4 flex items-start gap-3 text-destructive">
-            <XCircle className="size-9 shrink-0 fill-destructive text-primary-foreground" />
-            <div>
-              <p className="font-display text-2xl font-bold">{t("correctAnswer")}</p>
-              <p className="font-semibold">{correctText(q)}</p>
+          <div className="mb-4 flex items-start gap-3 text-destructive animate-encourage-wobble">
+            <div className="relative shrink-0 mt-1">
+              <FoxMascot mood="encourage" size="sm" />
+              <span className="absolute -top-1 -end-1 flex size-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-primary-foreground">
+                !
+              </span>
+            </div>
+            <div className="flex-1">
+              <p className="font-display text-lg font-bold">{t("correctAnswer")}</p>
+              <p className="font-semibold text-base">{correctText(q)}</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">اضغط «اسأل فوكس» أدناه لمعرفة سبب الخطأ فوراً</p>
             </div>
           </div>
         )}
@@ -246,12 +261,11 @@ function Bubble({ children, lang, hint }: { children: string; lang: LangCode; hi
   );
 }
 
-function MC({ q, target, native, pick, onPick, disabled }: { q: MCQuestion; target: LangCode; native: LangCode; pick: string | null; onPick: (s: string) => void; disabled: boolean }) {
+function MC({ q, target, native, pick, onPick, disabled, status = "answering" }: { q: MCQuestion; target: LangCode; native: LangCode; pick: string | null; onPick: (s: string) => void; disabled: boolean; status?: Status }) {
   return (
     <>
       <div className="mt-5 flex items-center gap-3">
-        <img src={fox} alt="" width={64} height={64} className="size-16" />
-        <Bubble lang={target} hint={q.hint}>{q.word}</Bubble>
+        <FoxMascot mood={status === "correct" ? "celebrate" : status === "wrong" ? "encourage" : "neutral"} size="md" speech={q.word} speechLang={target} hint={q.hint} />
         <SpeakButton text={q.word} lang={target} />
       </div>
       <div className="mt-6 grid grid-cols-2 gap-3">
@@ -292,12 +306,11 @@ function Listen({ q, target, pick, onPick, disabled }: { q: ListenQuestion; targ
   );
 }
 
-function Builder({ q, target, native, built, setBuilt, disabled, shake }: { q: BuilderQuestion; target: LangCode; native: LangCode; built: number[]; setBuilt: (b: number[]) => void; disabled: boolean; shake: boolean }) {
+function Builder({ q, target, native, built, setBuilt, disabled, shake, status = "answering" }: { q: BuilderQuestion; target: LangCode; native: LangCode; built: number[]; setBuilt: (b: number[]) => void; disabled: boolean; shake: boolean; status?: Status }) {
   return (
     <>
       <div className="mt-5 flex items-center gap-3">
-        <img src={fox} alt="" width={80} height={80} className="size-20" />
-        <Bubble lang={target}>{q.sentence}</Bubble>
+        <FoxMascot mood={status === "correct" ? "celebrate" : status === "wrong" ? "encourage" : "neutral"} size="md" speech={q.sentence} speechLang={target} />
         <SpeakButton text={q.sentence} lang={target} />
       </div>
       <div dir={dirOf(native)} className={cn("mt-6 flex min-h-28 flex-wrap content-start gap-2 border-y-2 border-border py-3", shake && "animate-shake")}>
@@ -319,13 +332,12 @@ function Builder({ q, target, native, built, setBuilt, disabled, shake }: { q: B
   );
 }
 
-function TypeIn({ q, target, value, onChange, onSubmit, disabled, shake }: { q: TypeQuestion; target: LangCode; value: string; onChange: (v: string) => void; onSubmit: () => void; disabled: boolean; shake: boolean }) {
+function TypeIn({ q, target, value, onChange, onSubmit, disabled, shake, status = "answering" }: { q: TypeQuestion; target: LangCode; value: string; onChange: (v: string) => void; onSubmit: () => void; disabled: boolean; shake: boolean; status?: Status }) {
   const { t } = useT();
   return (
     <>
       <div className="mt-5 flex items-center gap-3">
-        <img src={fox} alt="" width={64} height={64} className="size-16" />
-        <Bubble lang={q.showLang}>{q.show}</Bubble>
+        <FoxMascot mood={status === "correct" ? "celebrate" : status === "wrong" ? "encourage" : "neutral"} size="md" speech={q.show} speechLang={q.showLang} />
         {q.showLang === target && <SpeakButton text={q.show} lang={target} />}
       </div>
       <form onSubmit={(e) => { e.preventDefault(); onSubmit(); }}>
@@ -438,7 +450,10 @@ function Complete({ reward, perfect, practice, onContinue }: { reward: { xp: num
     <div className="mx-auto flex min-h-dvh max-w-md flex-col items-center justify-between px-6 py-10 text-center">
       <div />
       <div className="w-full">
-        <img src={fox} alt="" width={180} height={180} className="mx-auto size-44 animate-float" />
+        <div className="relative mx-auto size-44">
+          <FoxMascot mood="celebrate" size="xl" className="mx-auto" />
+          <div className="pointer-events-none absolute -inset-2 rounded-full bg-primary/20 blur-xl animate-pulse" />
+        </div>
         <h1 className="mt-4 text-4xl font-bold text-primary">{t(practice ? "practiceDone" : "lessonComplete")}</h1>
         {reward.freezeUsed > 0 && <p className="mt-2 font-display font-semibold text-gem">{t("freezeSaved", { n: reward.freezeUsed })}</p>}
         {perfect && !practice && <p className="mt-2 font-display font-semibold text-success-shade">{t("perfectLesson", { n: bonus })}</p>}

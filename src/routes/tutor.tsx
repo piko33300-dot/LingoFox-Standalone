@@ -14,6 +14,7 @@ import { Message, MessageContent, MessageResponse } from "@/components/ai-elemen
 import { PromptInput, PromptInputFooter, PromptInputSubmit, PromptInputTextarea, type PromptInputMessage } from "@/components/ai-elements/prompt-input";
 import { Shimmer } from "@/components/ai-elements/shimmer";
 import fox from "@/assets/fox.png";
+import { FoxMascot } from "@/components/lingo/FoxMascot";
 
 export const Route = createFileRoute("/tutor")({
   head: () => ({
@@ -41,7 +42,7 @@ function Tutor() {
     <AppPage>
       <div className="mx-auto flex h-[calc(100dvh-6rem)] max-w-md flex-col px-4 pt-4">
         <header className="flex items-center gap-3 pb-3">
-          <img src={fox} alt="" width={48} height={48} className="size-12" />
+          <FoxMascot mood="speaking" size="sm" />
           <div className="flex-1">
             <h1 className="text-xl font-bold text-secondary">{t("tutorTitle")}</h1>
             <p className="text-xs text-muted-foreground">{course.flag} {loc(course.title)} · {t("tutorSub")}</p>
@@ -51,7 +52,7 @@ function Tutor() {
           <p className="mt-10 text-center text-muted-foreground">{t("loading")}</p>
         ) : !user ? (
           <div className="mt-6 rounded-3xl border-2 border-border bg-card p-6 text-center">
-            <img src={fox} alt="" width={96} height={96} className="mx-auto size-24 animate-float" />
+            <FoxMascot mood="encourage" size="lg" className="mx-auto" />
             <p className="mt-3 font-semibold">{t("tutorGuest")}</p>
             <Link to="/auth" className="btn-3d mt-4 block bg-primary px-6 py-3 text-primary-foreground shadow-[0_4px_0_var(--primary-shade)]">{t("signIn")}</Link>
           </div>
@@ -152,7 +153,7 @@ function TutorChat({ userId, courseId }: { userId: string; courseId: string }) {
         <ConversationContent className="gap-5 p-4">
           {loaded && messages.length === 0 && (
             <div className="flex flex-col items-center gap-4 py-6 text-center">
-              <img src={fox} alt="" width={88} height={88} className="size-22 animate-float" />
+              <FoxMascot mood="neutral" size="lg" />
               <p className="font-display font-semibold text-secondary">{t("tutorEmpty")}</p>
               <div className="flex flex-wrap justify-center gap-2">
                 {STARTERS.map((k) => (

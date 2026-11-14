@@ -11,6 +11,7 @@ import { speakingItems, type SpeakResult } from "@/lib/speaking";
 import { cn } from "@/lib/utils";
 import { ChunkyButton } from "@/components/lingo/ChunkyButton";
 import fox from "@/assets/fox.png";
+import { FoxMascot } from "@/components/lingo/FoxMascot";
 
 export const Route = createFileRoute("/speak")({
   head: () => ({
@@ -62,7 +63,7 @@ function Speak() {
   if (!user) {
     return (
       <main className="mx-auto flex min-h-dvh max-w-md flex-col items-center justify-center gap-5 px-6 text-center">
-        <img src={fox} alt="" width={120} height={120} className="size-28" />
+        <FoxMascot mood="encourage" size="lg" />
         <p className="font-display text-lg font-semibold text-secondary">{t("speakGuest")}</p>
         <Link to="/auth" className="btn-3d block w-full bg-primary px-6 py-3.5 text-primary-foreground shadow-[0_4px_0_var(--primary-shade)]">{t("signIn")}</Link>
       </main>
@@ -71,7 +72,7 @@ function Speak() {
   if (finished) {
     return (
       <main className="mx-auto flex min-h-dvh max-w-md flex-col items-center justify-center gap-5 px-6 text-center">
-        <img src={fox} alt="" width={140} height={140} className="size-32 animate-float" />
+        <FoxMascot mood="celebrate" size="xl" />
         <h1 className="text-2xl font-bold text-secondary">{t("speakDone")}</h1>
         <p className="font-display text-xl font-bold text-primary">+5 XP</p>
         <ChunkyButton onClick={() => navigate({ to: "/learn" })}>{t("backToLearn")}</ChunkyButton>
@@ -153,7 +154,7 @@ function Speak() {
 
       <h1 className="mt-8 text-2xl font-bold text-secondary">{t("speakSay")}</h1>
       <div className="mt-5 flex items-center gap-3">
-        <img src={fox} alt="" width={72} height={72} className="size-18 shrink-0" />
+        <FoxMascot mood={phase === "result" ? (result?.passed ? "celebrate" : "encourage") : phase === "recording" ? "speaking" : "neutral"} size="md" className="shrink-0" />
         <div className="relative flex-1 rounded-2xl border-2 border-border bg-card p-4">
           <p lang={courseId} dir="auto" className="font-display text-2xl font-bold text-foreground">
             {result ? result.words.map((w, i) => (
