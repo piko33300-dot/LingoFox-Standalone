@@ -5,14 +5,23 @@ import type { Json } from "@/integrations/supabase/types";
 import { displayStreak, mergeProgress, progressActions, sanitizeProgress, subscribeProgress } from "./progress-store";
 import { weekStart, weekXp } from "./leagues";
 
-type AccountState = { user: User | null; ready: boolean };
-let account: AccountState = { user: null, ready: false };
+type AccountState = { user: User | null; role: string | null; ready: boolean };
+let account: AccountState = { user: null, role: null, ready: false };
 const listeners = new Set<() => void>();
 const emit = (next: AccountState) => { account = next; listeners.forEach((l) => l()); };
 
 let started = false;
 let pushTimer: ReturnType<typeof setTimeout> | null = null;
 let pulling = false;
+
+async function fetchRole(userId: string): Promise<string> {
+  try {
+    const { data } = await supabase.from("profiles").select("role").eq("id", userId).maybeSingle();
+    return (data as { role?: string } | null)?.role ?? "user";
+  } catch {
+    return "user";
+  }
+}
 
 async function pull(userId: string) {
   pulling = true;
@@ -46,16 +55,19 @@ export function startAccount(onIdentityChange: () => void) {
   if (started || typeof window === "undefined") return;
   started = true;
 
-  supabase.auth.getUser().then(({ data }) => {
-    emit({ user: data.user ?? null, ready: true });
-    if (data.user) void pull(data.user.id);
+  supabase.auth.getUser().then(async ({ data }) => {
+    const user = data.user ?? null;
+    const role = user ? await fetchRole(user.id) : null;
+    emit({ user, role, ready: true });
+    if (user) void pull(user.id);
   });
 
-  supabase.auth.onAuthStateChange((event, session) => {
+  supabase.auth.onAuthStateChange(async (event, session) => {
     if (event !== "SIGNED_IN" && event !== "SIGNED_OUT" && event !== "USER_UPDATED") return;
     const user = session?.user ?? null;
     const changed = user?.id !== account.user?.id;
-    emit({ user, ready: true });
+    const role = user ? await fetchRole(user.id) : null;
+    emit({ user, role, ready: true });
     if (event === "SIGNED_IN" && user && changed) void pull(user.id);
     onIdentityChange();
   });
@@ -77,13 +89,26 @@ export function cancelPendingSync() {
 export async function signOut() {
   await supabase.auth.signOut();
   progressActions.reset();
+  emit({ user: null, role: null, ready: true });
+}
+
+export async function refreshAccountRole() {
+  if (account.user) {
+    const role = await fetchRole(account.user.id);
+    emit({ ...account, role });
+  }
 }
 
 function subscribe(l: () => void) {
   listeners.add(l);
   return () => listeners.delete(l);
 }
-const serverSnapshot: AccountState = { user: null, ready: false };
+const serverSnapshot: AccountState = { user: null, role: null, ready: false };
 export function useAccount() {
   return useSyncExternalStore(subscribe, () => account, () => serverSnapshot);
+}
+
+export function useIsAdmin(): boolean {
+  const { user, role } = useAccount();
+  return Boolean(user && role === "admin");
 }

@@ -1,10 +1,10 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Flame, Gem, LogOut, Star, Trash2, Trophy, Zap, BookCheck } from "lucide-react";
+import { Flame, Gem, LogOut, Shield, Star, Trash2, Trophy, Zap, BookCheck } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { cancelPendingSync, signOut, useAccount } from "@/lib/account";
+import { cancelPendingSync, signOut, useAccount, useIsAdmin } from "@/lib/account";
 import { deleteMyAccount } from "@/lib/account.functions";
 import { achievementStatus } from "@/lib/achievements";
 import { DAILY_GOAL_OPTIONS, getCourse } from "@/lib/lessons";
@@ -48,6 +48,7 @@ export const Route = createFileRoute("/profile")({
 function Profile() {
   const p = useProgress();
   const { user } = useAccount();
+  const isAdmin = useIsAdmin();
   const { t, loc, lang } = useT();
   const course = getCourse(p.course);
   const achievements = achievementStatus(p);
@@ -131,6 +132,13 @@ function Profile() {
               <span className="text-lg">{course?.flag ?? "🌍"}</span>{course ? loc(course.title) : "—"} · {t("changeCourse")}
             </Link>
           </div>
+          {isAdmin && (
+            <Link to="/admin">
+              <ChunkyButton variant="primary" className="w-full flex items-center justify-center gap-2 shadow-glow">
+                <Shield className="size-5" /> لوحة تحكم المشرف 🛡️
+              </ChunkyButton>
+            </Link>
+          )}
           {user && <SignOutButton />}
           {user && <DeleteAccountButton />}
           <Link to="/privacy" className="block text-center text-sm font-semibold text-gem hover:underline">{t("privacy")}</Link>

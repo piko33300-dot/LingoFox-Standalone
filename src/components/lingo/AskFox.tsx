@@ -102,7 +102,7 @@ function AskFoxChat({ questionKey, answer, wasCorrect }: Props) {
       });
       if (!res.ok || !res.body) {
         const code = (await res.json().catch(() => ({}))) as { error?: string };
-        setError(code.error === "daily_limit" ? t("askFoxLimit") : code.error === "busy" ? t("askFoxBusy") : t("askFoxError"));
+        setError(code.error === "daily_limit" ? t("askFoxLimit") : code.error === "busy" ? t("askFoxBusy") : code.error === "ai_not_configured" ? t("aiNotConfigured") : t("askFoxError"));
         setStatus("error");
         return;
       }

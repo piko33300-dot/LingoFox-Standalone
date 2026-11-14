@@ -114,7 +114,7 @@ function TutorChat({ userId, courseId }: { userId: string; courseId: string }) {
       });
       if (!res.ok || !res.body) {
         const code = (await res.json().catch(() => ({}))) as { error?: string };
-        toast.error(code.error === "daily_limit" ? t("tutorLimit") : t("tutorError"));
+        toast.error(code.error === "daily_limit" ? t("tutorLimit") : code.error === "ai_not_configured" ? t("aiNotConfigured") : t("tutorError"));
         setStatus("ready");
         return;
       }

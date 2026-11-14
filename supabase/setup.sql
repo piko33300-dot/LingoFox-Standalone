@@ -258,3 +258,90 @@ EXCEPTION WHEN OTHERS THEN
   -- pg_cron might not be enabled or permission restricted on some plans
   RAISE NOTICE 'pg_cron setup skipped or not available';
 END $$;
+
+
+-- 9. Admin Role & Custom Dynamic Content (Courses, Lessons, Stories)
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS role text NOT NULL DEFAULT 'user';
+
+-- Helper function to check if current caller is an admin
+CREATE OR REPLACE FUNCTION public.is_admin()
+RETURNS boolean
+LANGUAGE sql
+SECURITY DEFINER
+STABLE
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = auth.uid() AND role = 'admin'
+  );
+$$;
+GRANT EXECUTE ON FUNCTION public.is_admin() TO authenticated;
+
+-- Custom Courses Table
+CREATE TABLE IF NOT EXISTS public.custom_courses (
+  id text PRIMARY KEY,
+  flag text NOT NULL DEFAULT '🌍',
+  title jsonb NOT NULL,
+  subtitle jsonb,
+  description jsonb,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+GRANT SELECT ON public.custom_courses TO anon, authenticated;
+GRANT ALL ON public.custom_courses TO service_role;
+GRANT INSERT, UPDATE, DELETE ON public.custom_courses TO authenticated;
+ALTER TABLE public.custom_courses ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Public can view courses" ON public.custom_courses;
+CREATE POLICY "Public can view courses" ON public.custom_courses FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Admins can manage courses" ON public.custom_courses;
+CREATE POLICY "Admins can manage courses" ON public.custom_courses FOR ALL TO authenticated
+  USING (public.is_admin()) WITH CHECK (public.is_admin());
+
+-- Custom Lessons Table
+CREATE TABLE IF NOT EXISTS public.custom_lessons (
+  id text PRIMARY KEY,
+  course_id text NOT NULL,
+  unit_id text NOT NULL,
+  title jsonb NOT NULL,
+  description jsonb,
+  xp integer NOT NULL DEFAULT 10,
+  content jsonb NOT NULL DEFAULT '[]'::jsonb,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+GRANT SELECT ON public.custom_lessons TO anon, authenticated;
+GRANT ALL ON public.custom_lessons TO service_role;
+GRANT INSERT, UPDATE, DELETE ON public.custom_lessons TO authenticated;
+ALTER TABLE public.custom_lessons ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Public can view lessons" ON public.custom_lessons;
+CREATE POLICY "Public can view lessons" ON public.custom_lessons FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Admins can manage lessons" ON public.custom_lessons;
+CREATE POLICY "Admins can manage lessons" ON public.custom_lessons FOR ALL TO authenticated
+  USING (public.is_admin()) WITH CHECK (public.is_admin());
+
+-- Custom Stories Table
+CREATE TABLE IF NOT EXISTS public.custom_stories (
+  id text PRIMARY KEY,
+  course_id text NOT NULL,
+  title jsonb NOT NULL,
+  emoji text NOT NULL DEFAULT '📖',
+  lines jsonb NOT NULL DEFAULT '[]'::jsonb,
+  questions jsonb NOT NULL DEFAULT '[]'::jsonb,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+GRANT SELECT ON public.custom_stories TO anon, authenticated;
+GRANT ALL ON public.custom_stories TO service_role;
+GRANT INSERT, UPDATE, DELETE ON public.custom_stories TO authenticated;
+ALTER TABLE public.custom_stories ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Public can view stories" ON public.custom_stories;
+CREATE POLICY "Public can view stories" ON public.custom_stories FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Admins can manage stories" ON public.custom_stories;
+CREATE POLICY "Admins can manage stories" ON public.custom_stories FOR ALL TO authenticated
+  USING (public.is_admin()) WITH CHECK (public.is_admin());

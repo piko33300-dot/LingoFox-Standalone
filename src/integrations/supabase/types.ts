@@ -74,6 +74,7 @@ export type Database = {
           display_name: string
           friend_code: string
           id: string
+          role: string
           league: number
           streak: number
           updated_at: string
@@ -84,6 +85,7 @@ export type Database = {
           display_name?: string
           friend_code?: string
           id: string
+          role?: string
           league?: number
           streak?: number
           updated_at?: string
@@ -94,10 +96,110 @@ export type Database = {
           display_name?: string
           friend_code?: string
           id?: string
+          role?: string
           league?: number
           streak?: number
           updated_at?: string
           xp?: number
+        }
+        Relationships: []
+      }
+      custom_courses: {
+        Row: {
+          created_at: string
+          description: Json | null
+          flag: string
+          id: string
+          subtitle: Json | null
+          title: Json
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: Json | null
+          flag?: string
+          id: string
+          subtitle?: Json | null
+          title: Json
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: Json | null
+          flag?: string
+          id?: string
+          subtitle?: Json | null
+          title?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      custom_lessons: {
+        Row: {
+          content: Json
+          course_id: string
+          created_at: string
+          description: Json | null
+          id: string
+          title: Json
+          unit_id: string
+          updated_at: string
+          xp: number
+        }
+        Insert: {
+          content?: Json
+          course_id: string
+          created_at?: string
+          description?: Json | null
+          id: string
+          title: Json
+          unit_id: string
+          updated_at?: string
+          xp?: number
+        }
+        Update: {
+          content?: Json
+          course_id?: string
+          created_at?: string
+          description?: Json | null
+          id?: string
+          title?: Json
+          unit_id?: string
+          updated_at?: string
+          xp?: number
+        }
+        Relationships: []
+      }
+      custom_stories: {
+        Row: {
+          course_id: string
+          created_at: string
+          emoji: string
+          id: string
+          lines: Json
+          questions: Json
+          title: Json
+          updated_at: string
+        }
+        Insert: {
+          course_id: string
+          created_at?: string
+          emoji?: string
+          id: string
+          lines?: Json
+          questions?: Json
+          title: Json
+          updated_at?: string
+        }
+        Update: {
+          course_id?: string
+          created_at?: string
+          emoji?: string
+          id?: string
+          lines?: Json
+          questions?: Json
+          title?: Json
+          updated_at?: string
         }
         Relationships: []
       }

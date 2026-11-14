@@ -119,7 +119,7 @@ function Speak() {
       const res = await fetch("/api/speak", { method: "POST", body: form, headers: token ? { authorization: `Bearer ${token}` } : {} });
       const body = (await res.json()) as (SpeakResult & { heard: string }) | { error: string };
       if (!res.ok || "error" in body) {
-        alertOnce("error" in body && body.error === "daily_limit" ? t("speakLimit") : t("speakError"));
+        alertOnce("error" in body && body.error === "daily_limit" ? t("speakLimit") : "error" in body && body.error === "ai_not_configured" ? t("aiNotConfigured") : t("speakError"));
         setPhase("idle");
         return;
       }
