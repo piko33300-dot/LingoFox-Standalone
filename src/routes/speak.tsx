@@ -10,7 +10,6 @@ import { speak } from "@/lib/speech";
 import { speakingItems, type SpeakResult } from "@/lib/speaking";
 import { cn } from "@/lib/utils";
 import { ChunkyButton } from "@/components/lingo/ChunkyButton";
-import fox from "@/assets/fox.png";
 import { FoxMascot } from "@/components/lingo/FoxMascot";
 
 export const Route = createFileRoute("/speak")({
@@ -161,8 +160,16 @@ function Speak() {
               <span key={i} className={cn(w.ok ? "text-success" : "text-destructive")}>{w.word}{" "}</span>
             )) : sentence}
           </p>
-          <button type="button" onClick={() => speak(sentence, courseId as never)} aria-label="🔊"
-            className="mt-2 flex items-center gap-1 text-sm font-semibold text-gem"><Volume2 className="size-5" /></button>
+          <div className="mt-2 flex items-center gap-3">
+            <button type="button" onClick={() => speak(sentence, courseId as never)} aria-label="🔊"
+              className="flex items-center gap-1 text-sm font-semibold text-gem transition-colors hover:opacity-80">
+              <Volume2 className="size-5" />
+            </button>
+            <button type="button" onClick={() => speak(sentence, courseId as never, true)} aria-label={t("slow")} title={t("slow")}
+              className="flex items-center gap-1 text-xs font-semibold text-muted-foreground transition-colors hover:text-gem">
+              <span>🐢 {t("slow")}</span>
+            </button>
+          </div>
         </div>
       </div>
 

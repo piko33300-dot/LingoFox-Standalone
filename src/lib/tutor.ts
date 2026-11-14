@@ -25,3 +25,30 @@ export function tutorInstructions(courseId: CourseId | null, ui: UiLang, level: 
 }
 
 export type TutorMessage = { id: string; role: "user" | "assistant"; content: string };
+
+/** Parse tutor assistant message to separate conversational body from correction note. */
+export function parseTutorContent(content: string): { reply: string; body: string; correction: string | null } {
+  if (!content.includes("✏️")) {
+    return { reply: content.trim(), body: content.trim(), correction: null };
+  }
+  const lines = content.split("\n");
+  const corr: string[] = [];
+  const rest: string[] = [];
+  let inCorr = false;
+  for (const line of lines) {
+    if (line.includes("✏️")) {
+      inCorr = true;
+      const stripped = line.replace("✏️", "").trim();
+      if (stripped) corr.push(stripped);
+    } else if (inCorr && line.trim() !== "") {
+      corr.push(line.trim());
+    } else if (inCorr && line.trim() === "") {
+      inCorr = false;
+    } else {
+      rest.push(line);
+    }
+  }
+  const reply = rest.join("\n").trim() || content.trim();
+  const correction = corr.join(" ").trim() || null;
+  return { reply, body: reply, correction };
+}
