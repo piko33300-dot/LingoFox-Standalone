@@ -40,3 +40,34 @@ describe("parseTutorContent", () => {
     expect(parsed.correction).toBeNull();
   });
 });
+
+import {
+  isSpeechRecognitionSupported,
+  isMediaRecorderSupported,
+  isAudioCaptureSupported,
+  getVoiceCapability,
+} from "../lib/speech-recognition";
+
+describe("speech recognition capabilities & fallbacks", () => {
+  it("safely queries browser speech recognition support without crashing", () => {
+    const supported = isSpeechRecognitionSupported();
+    expect(typeof supported).toBe("boolean");
+  });
+
+  it("safely queries media recording support", () => {
+    const supported = isMediaRecorderSupported();
+    expect(typeof supported).toBe("boolean");
+  });
+
+  it("safely queries audio capture support", () => {
+    const supported = isAudioCaptureSupported();
+    expect(typeof supported).toBe("boolean");
+  });
+
+  it("returns a structured capability report", () => {
+    const cap = getVoiceCapability();
+    expect(typeof cap.liveRecognition).toBe("boolean");
+    expect(typeof cap.audioRecording).toBe("boolean");
+    expect(typeof cap.hasVoiceInput).toBe("boolean");
+  });
+});

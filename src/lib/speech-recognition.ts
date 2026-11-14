@@ -1,6 +1,7 @@
 import { LOCALE } from "./speech";
 import type { LangCode } from "./lessons";
 
+/** Check if Web Speech API recognition is available in the current browser. */
 export function isSpeechRecognitionSupported(): boolean {
   if (typeof window === "undefined") return false;
   return Boolean(
@@ -8,9 +9,39 @@ export function isSpeechRecognitionSupported(): boolean {
   );
 }
 
+/** Check if MediaRecorder is available for fallback audio recording. */
+export function isMediaRecorderSupported(): boolean {
+  return typeof window !== "undefined" && typeof (window as any).MediaRecorder !== "undefined";
+}
+
+/** Check if navigator.mediaDevices.getUserMedia is available for recording audio. */
+export function isAudioCaptureSupported(): boolean {
+  return (
+    typeof window !== "undefined" &&
+    Boolean(navigator?.mediaDevices && typeof navigator.mediaDevices.getUserMedia === "function")
+  );
+}
+
+export type VoiceCapability = {
+  liveRecognition: boolean;
+  audioRecording: boolean;
+  hasVoiceInput: boolean;
+};
+
+/** Get comprehensive voice capabilities of the current user agent. */
+export function getVoiceCapability(): VoiceCapability {
+  const live = isSpeechRecognitionSupported();
+  const rec = isAudioCaptureSupported() && isMediaRecorderSupported();
+  return {
+    liveRecognition: live,
+    audioRecording: rec,
+    hasVoiceInput: live || rec,
+  };
+}
+
 export type VoiceListenerHandlers = {
   onResult: (transcript: string, isFinal: boolean) => void;
-  onError: (error: string) => void;
+  onError: (errorKind: "not-allowed" | "no-speech" | "audio-capture" | "network" | "unknown") => void;
   onEnd: () => void;
   onStart: () => void;
 };
@@ -51,7 +82,18 @@ export class SpeechRecognizer {
 
     this.recognition.onerror = (event: any) => {
       this.active = false;
-      this.handlers.onError(event.error || "speech_recognition_error");
+      const raw = String(event.error || "").toLowerCase();
+      let kind: "not-allowed" | "no-speech" | "audio-capture" | "network" | "unknown" = "unknown";
+      if (raw.includes("not-allowed") || raw.includes("permission")) {
+        kind = "not-allowed";
+      } else if (raw.includes("no-speech")) {
+        kind = "no-speech";
+      } else if (raw.includes("audio-capture")) {
+        kind = "audio-capture";
+      } else if (raw.includes("network")) {
+        kind = "network";
+      }
+      this.handlers.onError(kind);
     };
 
     this.recognition.onend = () => {

@@ -21,7 +21,7 @@ export const Route = createFileRoute("/api/speak")({
         const expected = String(form?.get("expected") ?? "").trim();
         const lang = String(form?.get("lang") ?? "");
         if (!(audio instanceof Blob) || audio.size === 0 || audio.size > MAX_AUDIO_BYTES) return jsonError(400, "bad_audio");
-        if (!expected || expected.length > 200 || !COURSE_IDS.includes(lang as never)) return jsonError(400, "bad_request");
+        if (expected.length > 200 || !COURSE_IDS.includes(lang as never)) return jsonError(400, "bad_request");
 
         const quota = await auth.supabase.rpc("consume_ai_quota", { _kind: "speak" });
         if (quota.error) return jsonError(500, "quota_failed");
@@ -33,7 +33,7 @@ export const Route = createFileRoute("/api/speak")({
           const ext = type.includes("mp4") ? "mp4" : type.includes("ogg") ? "ogg" : type.includes("wav") ? "wav" : "webm";
           const file = new File([audio], `speech.${ext}`, { type });
           const heard = await transcribe(file, lang);
-          return Response.json({ heard, ...scoreSpeech(expected, heard) });
+          return Response.json(expected ? { heard, ...scoreSpeech(expected, heard) } : { heard });
         } catch (err) {
           if (!(err instanceof AiError)) console.error("transcription failed", err);
           return jsonError(err instanceof AiError && err.status === 429 ? 429 : 502, "ai_failed");
