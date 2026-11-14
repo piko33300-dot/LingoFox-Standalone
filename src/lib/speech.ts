@@ -7,6 +7,7 @@ export const LOCALE: Record<LangCode, string> = {
   fr: "fr-FR",
   tr: "tr-TR",
   de: "de-DE",
+  it: "it-IT",
 };
 
 export function canSpeak(): boolean {

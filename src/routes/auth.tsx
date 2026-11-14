@@ -4,7 +4,8 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAccount } from "@/lib/account";
 import { progressActions } from "@/lib/progress-store";
-import { useT } from "@/lib/i18n";
+import { setLang, useT } from "@/lib/i18n";
+import { ArrowLeft, ArrowRight, Languages } from "lucide-react";
 import { ChunkyButton } from "@/components/lingo/ChunkyButton";
 import { SocialButtons } from "@/components/lingo/SocialButtons";
 import { useIsNativeApp } from "@/lib/native";
@@ -28,7 +29,7 @@ export const Route = createFileRoute("/auth")({
 type Mode = "signin" | "signup" | "forgot";
 
 function AuthPage() {
-  const { t } = useT();
+  const { t, lang, dir } = useT();
   const { user } = useAccount();
   const navigate = useNavigate();
   const [mode, setMode] = useState<Mode>("signin");
@@ -70,9 +71,25 @@ function AuthPage() {
     }
   }
 
+  const BackArrow = dir === "rtl" ? ArrowRight : ArrowLeft;
   return (
-    <main className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center px-5 py-10">
-      <Link to="/" className="mx-auto"><img src={fox} alt="LingoFox" width={110} height={110} className="size-24 animate-float" /></Link>
+    <main className="mx-auto flex min-h-dvh max-w-sm flex-col justify-between px-5 py-6">
+      <div className="flex items-center justify-between mb-4">
+        <Link to="/" className="flex items-center gap-1 text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors">
+          <BackArrow className="size-4" />
+          <span>{t("goHome")}</span>
+        </Link>
+        <button
+          type="button"
+          onClick={() => setLang(lang === "ar" ? "en" : "ar")}
+          className="flex items-center gap-1.5 rounded-full border-2 border-border bg-card px-3 py-1 font-display text-xs font-semibold text-muted-foreground hover:bg-muted transition-colors"
+        >
+          <Languages className="size-3.5" />
+          <span>{lang === "ar" ? "English" : "العربية"}</span>
+        </button>
+      </div>
+      <div className="my-auto">
+        <Link to="/" className="mx-auto block w-fit"><img src={fox} alt="LingoFox" width={110} height={110} className="size-24 animate-float" /></Link>
       <h1 className="mt-3 text-center text-3xl font-bold text-secondary">
         {mode === "signup" ? t("signUp") : mode === "forgot" ? t("forgotPassword") : t("signIn")}
       </h1>
@@ -113,6 +130,7 @@ function AuthPage() {
         )}
       </p>
       <Link to="/privacy" className="mt-3 block text-center text-sm font-semibold text-gem hover:underline">{t("privacy")}</Link>
+      </div>
     </main>
   );
 }

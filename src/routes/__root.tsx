@@ -87,15 +87,15 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-title", content: "LingoFox" },
       { name: "apple-mobile-web-app-status-bar-style", content: "default" },
-      { title: "LingoFox — تعلّم الإنجليزية والعربية" },
-      { name: "description", content: "دروس لغات قصيرة وممتعة مع التتابع اليومي ونقاط الخبرة والإنجازات." },
+      { title: "LingoFox — تعلّم لغات العالم بذكاء ومرح" },
+      { name: "description", content: "تعلّم الإنجليزية، الإسبانية، الفرنسية، الألمانية، الإيطالية، التركية، والعربية بدروس قصيرة ومعلّم ذكي ومنافسات عالمية." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
     links: [
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
-      { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Readex+Pro:wght@400;500;600;700&display=swap" },
+      { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Readex+Pro:wght@400;500;600;700&display=swap" },
       {
         rel: "stylesheet",
         href: appCss,
@@ -117,6 +117,7 @@ function RootShell({ children }: { children: ReactNode }) {
     <html lang="ar" dir="rtl">
       <head>
         <HeadContent />
+        <script dangerouslySetInnerHTML={{ __html: `try{var l=localStorage.getItem("lingofox-ui-lang");if(l==="en"){document.documentElement.lang="en";document.documentElement.dir="ltr";}}catch(e){}` }} />
       </head>
       <body>
         {children}

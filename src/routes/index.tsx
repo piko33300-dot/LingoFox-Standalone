@@ -12,7 +12,7 @@ export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       { title: "LingoFox — تعلّم اللغات مع معلّم ذكي" },
-      { name: "description", content: "تعلّم الإنجليزية والإسبانية والفرنسية والتركية والألمانية والعربية بدروس قصيرة ومعلّم ذكاء اصطناعي يشرح أخطاءك ويصحّح إجاباتك." },
+      { name: "description", content: "تعلّم الإنجليزية والإسبانية والفرنسية والألمانية والإيطالية والتركية والعربية بدروس قصيرة ومعلّم ذكاء اصطناعي يشرح أخطاءك ويصحّح إجاباتك." },
       { property: "og:title", content: "LingoFox — تعلّم اللغات مع ثعلب ذكي" },
       { property: "og:description", content: "دروس قصيرة، شرح فوري لأخطائك، تدريب على النطق ودوريات أسبوعية." },
       { property: "og:type", content: "website" },

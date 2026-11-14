@@ -82,7 +82,7 @@ export function LessonPath() {
                   );
                 })}
                 {ui === 0 && (
-                  <img src={fox} alt="" width={96} height={96} className="pointer-events-none absolute -left-2 top-16 size-24 animate-float opacity-95" />
+                  <img src={fox} alt="" width={96} height={96} className="pointer-events-none absolute -start-2 top-16 size-24 animate-float opacity-95" />
                 )}
               </div>
             </section>

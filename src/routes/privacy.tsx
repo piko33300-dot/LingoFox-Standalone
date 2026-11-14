@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useT } from "@/lib/i18n";
+import { setLang, useT } from "@/lib/i18n";
+import { ArrowLeft, ArrowRight, Languages } from "lucide-react";
 import { CONTACT_EMAIL, POLICY_UPDATED, PRIVACY_SECTIONS } from "@/lib/legal";
 
 export const Route = createFileRoute("/privacy")({
@@ -17,9 +18,24 @@ export const Route = createFileRoute("/privacy")({
 });
 
 function Privacy() {
-  const { t, loc, lang } = useT();
+  const { t, loc, lang, dir } = useT();
+  const BackArrow = dir === "rtl" ? ArrowRight : ArrowLeft;
   return (
-    <main className="mx-auto max-w-md px-5 py-8">
+    <main className="mx-auto max-w-md px-5 py-6">
+      <div className="flex items-center justify-between mb-4">
+        <Link to="/learn" className="flex items-center gap-1 text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors">
+          <BackArrow className="size-4" />
+          <span>{t("backToLearn")}</span>
+        </Link>
+        <button
+          type="button"
+          onClick={() => setLang(lang === "ar" ? "en" : "ar")}
+          className="flex items-center gap-1.5 rounded-full border-2 border-border bg-card px-3 py-1 font-display text-xs font-semibold text-muted-foreground hover:bg-muted transition-colors"
+        >
+          <Languages className="size-3.5" />
+          <span>{lang === "ar" ? "English" : "العربية"}</span>
+        </button>
+      </div>
       <h1 className="text-3xl font-bold text-secondary">{t("privacy")}</h1>
       <p className="mt-1 text-sm text-muted-foreground">{POLICY_UPDATED}</p>
       {PRIVACY_SECTIONS.map((s, i) => (

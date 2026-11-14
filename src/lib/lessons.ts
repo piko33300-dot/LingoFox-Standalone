@@ -14,6 +14,7 @@ import { SPANISH } from "./courses/es";
 import { FRENCH } from "./courses/fr";
 import { TURKISH } from "./courses/tr";
 import { GERMAN } from "./courses/de";
+import { ITALIAN } from "./courses/it";
 
 export * from "./course-kit";
 
@@ -255,7 +256,7 @@ const ARABIC: Course = {
   ],
 };
 
-export const COURSES: Course[] = [ENGLISH, ARABIC, SPANISH, FRENCH, TURKISH, GERMAN];
+export const COURSES: Course[] = [ENGLISH, ARABIC, SPANISH, FRENCH, GERMAN, ITALIAN, TURKISH];
 export const getCourse = (id: CourseId | null | undefined) => COURSES.find((c) => c.id === id) ?? null;
 
 export const lessonIdsOf = (course: Course) => course.units.flatMap((u) => u.lessons);

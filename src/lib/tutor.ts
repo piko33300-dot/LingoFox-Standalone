@@ -5,7 +5,7 @@ export const TUTOR_MAX_INPUT = 500;
 export const TUTOR_HISTORY = 20;
 export const TUTOR_DAILY_LIMIT = 40;
 
-const NAMES: Record<string, string> = { en: "English", ar: "Arabic", es: "Spanish", fr: "French", tr: "Turkish", de: "German" };
+const NAMES: Record<string, string> = { en: "English", ar: "Arabic", es: "Spanish", fr: "French", tr: "Turkish", de: "German", it: "Italian" };
 
 export function tutorInstructions(courseId: CourseId | null, ui: UiLang, level: number): string {
   const course = getCourse(courseId) ?? getCourse("en")!;

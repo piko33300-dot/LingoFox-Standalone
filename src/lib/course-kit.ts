@@ -1,6 +1,6 @@
 // Building blocks shared by every course file (types + question helpers).
 /** Languages a course can teach or be taught in. */
-export type LangCode = "en" | "ar" | "es" | "fr" | "tr" | "de";
+export type LangCode = "en" | "ar" | "es" | "fr" | "tr" | "de" | "it";
 /** Interface languages (i18n dictionaries). */
 export type UiLang = "en" | "ar";
 export type Localized = { ar: string; en: string };
@@ -45,8 +45,8 @@ export type Unit = {
   questions: Question[];
 };
 
-export type CourseId = "en" | "ar" | "es" | "fr" | "tr" | "de";
-export const COURSE_IDS: CourseId[] = ["en", "ar", "es", "fr", "tr", "de"];
+export type CourseId = "en" | "ar" | "es" | "fr" | "tr" | "de" | "it";
+export const COURSE_IDS: CourseId[] = ["en", "ar", "es", "fr", "tr", "de", "it"];
 export type Course = {
   id: CourseId;
   target: LangCode;

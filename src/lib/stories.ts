@@ -202,6 +202,36 @@ export const STORIES: Story[] = [
       Q(4, "ماذا سيشربان؟", "What will they drink?", ["Kaffee", "Tee", "Saft"], 1),
     ],
   },
+  {
+    id: "it-story-1", course: "it", emoji: "☕", title: { ar: "في المقهى", en: "At the café" },
+    lines: [
+      L("👩", "Buongiorno! Un espresso e un cornetto, per favore.", "صباح الخير! إكسبريسو وكرواسون من فضلك."),
+      L("👨", "Buongiorno! Il cornetto alla crema o al cioccolato?", "صباح الخير! الكرواسون بالكريمة أم بالشوكولاتة؟"),
+      L("👩", "Al cioccolato, grazie mille.", "بالشوكولاتة، شكراً جزيلاً."),
+      L("👨", "Ecco a Lei. Sono tre euro.", "تفضلي. الحساب ثلاثة يوروهات."),
+      L("👩", "Ecco a Lei. Buona giornata!", "تفضل. يوماً سعيداً!"),
+      L("👨", "Grazie, anche a Lei!", "شكراً، ولك أيضاً!"),
+    ],
+    questions: [
+      Q(2, "ما نوع الكرواسون الذي طلبته؟", "What kind of croissant did she order?", ["Al cioccolato", "Alla crema", "Alla marmellata"], 0),
+      Q(3, "كم سعر الطلب؟", "How much was the order?", ["Tre euro", "Cinque euro", "Dieci euro"], 0),
+    ],
+  },
+  {
+    id: "it-story-2", course: "it", emoji: "🍕", title: { ar: "صديق جديد", en: "A new friend" },
+    lines: [
+      L("👦", "Ciao! Io sono Marco. Sei nuovo qui?", "مرحباً! أنا ماركو. هل أنت جديد هنا؟"),
+      L("🧔", "Ciao Marco! Sì, mi chiamo Luca. Sono di Roma.", "أهلاً ماركو! نعم، اسمي لوكا. أنا من روما."),
+      L("👦", "Benvenuto a Milano! Ti piace la pizza?", "مرحباً بك في ميلانو! هل تحب البيتزا؟"),
+      L("🧔", "Certo! La pizza margherita è la mia preferita.", "بالتأكيد! بيتزا مارغريتا هي المفضلة لدي."),
+      L("👦", "Andiamo in pizzeria stasera!", "لنذهب إلى مطعم البيتزا الليلة!"),
+      L("🧔", "Bellissima idea, a stasera!", "فكرة رائعة، إلى اللقاء الليلة!"),
+    ],
+    questions: [
+      Q(1, "من أين لوكا؟", "Where is Luca from?", ["Roma", "Milano", "Napoli"], 0),
+      Q(3, "ما هي البيتزا المفضلة لديه؟", "What is his favorite pizza?", ["Margherita", "Quattro formaggi", "Diavola"], 0),
+    ],
+  },
 ];
 
 export const storiesOf = (course: CourseId) => STORIES.filter((s) => s.course === course);
