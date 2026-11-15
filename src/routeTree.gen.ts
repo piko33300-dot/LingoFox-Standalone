@@ -15,6 +15,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as CoursesRouteImport } from './routes/courses'
 import { Route as LeaderboardRouteImport } from './routes/leaderboard'
 import { Route as LearnRouteImport } from './routes/learn'
+import { Route as PlacementRouteImport } from './routes/placement'
 import { Route as PracticeRouteImport } from './routes/practice'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ProfileRouteImport } from './routes/profile'
@@ -56,6 +57,11 @@ const LeaderboardRoute = LeaderboardRouteImport.update({
 const LearnRoute = LearnRouteImport.update({
   id: '/learn',
   path: '/learn',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PlacementRoute = PlacementRouteImport.update({
+  id: '/placement',
+  path: '/placement',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PracticeRoute = PracticeRouteImport.update({
@@ -126,6 +132,7 @@ export interface FileRoutesByFullPath {
   '/courses': typeof CoursesRoute
   '/leaderboard': typeof LeaderboardRoute
   '/learn': typeof LearnRoute
+  '/placement': typeof PlacementRoute
   '/practice': typeof PracticeRoute
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
@@ -146,6 +153,7 @@ export interface FileRoutesByTo {
   '/courses': typeof CoursesRoute
   '/leaderboard': typeof LeaderboardRoute
   '/learn': typeof LearnRoute
+  '/placement': typeof PlacementRoute
   '/practice': typeof PracticeRoute
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
@@ -167,6 +175,7 @@ export interface FileRoutesById {
   '/courses': typeof CoursesRoute
   '/leaderboard': typeof LeaderboardRoute
   '/learn': typeof LearnRoute
+  '/placement': typeof PlacementRoute
   '/practice': typeof PracticeRoute
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
@@ -189,6 +198,7 @@ export interface FileRouteTypes {
     | '/courses'
     | '/leaderboard'
     | '/learn'
+    | '/placement'
     | '/practice'
     | '/privacy'
     | '/profile'
@@ -209,6 +219,7 @@ export interface FileRouteTypes {
     | '/courses'
     | '/leaderboard'
     | '/learn'
+    | '/placement'
     | '/practice'
     | '/privacy'
     | '/profile'
@@ -229,6 +240,7 @@ export interface FileRouteTypes {
     | '/courses'
     | '/leaderboard'
     | '/learn'
+    | '/placement'
     | '/practice'
     | '/privacy'
     | '/profile'
@@ -250,6 +262,7 @@ export interface RootRouteChildren {
   CoursesRoute: typeof CoursesRoute
   LeaderboardRoute: typeof LeaderboardRoute
   LearnRoute: typeof LearnRoute
+  PlacementRoute: typeof PlacementRoute
   PracticeRoute: typeof PracticeRoute
   PrivacyRoute: typeof PrivacyRoute
   ProfileRoute: typeof ProfileRoute
@@ -306,6 +319,13 @@ declare module '@tanstack/react-router' {
       path: '/learn'
       fullPath: '/learn'
       preLoaderRoute: typeof LearnRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/placement': {
+      id: '/placement'
+      path: '/placement'
+      fullPath: '/placement'
+      preLoaderRoute: typeof PlacementRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/practice': {
@@ -402,6 +422,7 @@ const rootRouteChildren: RootRouteChildren = {
   CoursesRoute: CoursesRoute,
   LeaderboardRoute: LeaderboardRoute,
   LearnRoute: LearnRoute,
+  PlacementRoute: PlacementRoute,
   PracticeRoute: PracticeRoute,
   PrivacyRoute: PrivacyRoute,
   ProfileRoute: ProfileRoute,

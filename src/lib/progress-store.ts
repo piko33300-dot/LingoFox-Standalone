@@ -247,6 +247,26 @@ export const progressActions = {
     });
     return { ...reward, freezeUsed: used };
   },
+  /** Apply placement test outcome: sets course, marks skipped units completed, and awards placement bonus XP. */
+  applyPlacement(courseId: CourseId, unitIndex: number, bonusXp: number = 30) {
+    const course = getCourse(courseId);
+    if (!course) return;
+    const completedToUnlock: string[] = [];
+    const maxIndex = Math.min(unitIndex, course.units.length - 1);
+    for (let i = 0; i < maxIndex; i++) {
+      completedToUnlock.push(...course.units[i].lessons);
+    }
+    const newCompleted = Array.from(new Set([...state.completed, ...completedToUnlock]));
+    const today = new Date();
+    const t = dayKey(today);
+    set({
+      ...state,
+      course: courseId,
+      completed: newCompleted,
+      xp: state.xp + bonusXp,
+      xpByDay: { ...state.xpByDay, [t]: (state.xpByDay[t] ?? 0) + bonusXp },
+    });
+  },
   buyFreeze(): boolean {
     if (state.freezes >= MAX_FREEZES || state.gems < FREEZE_COST) return false;
     set({ ...state, freezes: state.freezes + 1, gems: state.gems - FREEZE_COST });

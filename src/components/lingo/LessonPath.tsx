@@ -25,6 +25,20 @@ export function LessonPath() {
       <DailyGoalCard p={p} />
       <PracticeCard p={p} />
       <SkillCards />
+      {p.completed.length <= 1 && (
+        <div className="mt-4 flex items-center justify-between gap-3 rounded-2xl border-2 border-primary/30 bg-primary/10 p-3.5 shadow-sm">
+          <div className="flex-1">
+            <p className="font-display text-sm font-bold text-secondary">{t("placementCardTitle")}</p>
+            <p className="text-xs text-muted-foreground">{t("placementCardDesc")}</p>
+          </div>
+          <Link
+            to="/placement"
+            className="btn-3d shrink-0 rounded-xl bg-ember px-3.5 py-1.5 font-display text-xs font-bold text-primary-foreground shadow-[0_2px_0_var(--primary-shade)] hover:brightness-105"
+          >
+            {t("placementCta")}
+          </Link>
+        </div>
+      )}
       <div className="h-6" />
       {course.units.map((unit, ui) => {
         const unitStarted = unit.lessons.some((id) => p.completed.includes(id) || id === current);

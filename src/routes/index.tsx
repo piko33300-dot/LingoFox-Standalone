@@ -67,6 +67,12 @@ function Splash() {
               {t("getStarted")} <Arrow className="size-5" />
             </ChunkyButton>
             <ChunkyButton variant="ghostLight" onClick={() => navigate({ to: "/auth" })}>{t("haveAccount")}</ChunkyButton>
+            <button
+              onClick={() => navigate({ to: "/placement" })}
+              className="flex w-full items-center justify-center gap-1.5 rounded-2xl border border-secondary-foreground/20 py-2.5 font-display text-sm font-semibold text-secondary-foreground/80 transition-colors hover:bg-secondary-foreground/10"
+            >
+              <span>{t("placementCta")}</span>
+            </button>
           </div>
 
           <dl className="mx-auto mt-8 grid max-w-sm grid-cols-3 divide-x divide-secondary-foreground/15 rtl:divide-x-reverse lg:mx-0">

@@ -38,6 +38,7 @@ PORT=3000
 - `src/components/lingo/FoxMascot.tsx`: Interactive SVG/CSS 3D Fox Mascot with mood states (neutral, celebrate, encourage, thinking, speaking).
 - `src/lib/sound.ts`: High-fidelity synthesizer (correct, wrong, complete, streak, tap) + mobile vibration.
 - `src/lib/progress-store.ts`: Game economy store (XP, gems, hearts, streak freezes, auto-regeneration of 1 heart / 4 hours, practice recovery).
+- `src/lib/placement.ts` & `src/routes/placement.tsx`: Short intelligent placement test with dynamic CEFR diagnosis, unlocking skipped units and awarding bonus XP.
 - `src/lib/reminders.ts`: Daily 8:00 PM practice reminders supporting native Capacitor notifications & Web/PWA Notifications.
 - `src/lib/speech.ts` & `src/lib/speech-recognition.ts`: Browser Web Speech API detection with audio recording fallback via `MediaRecorder`.
 - `src/routes/api/`: Server endpoints for `tutor.ts` (streaming dialogue), `speak.ts` (voice pronunciation), and `explain.ts` (error explanation).

@@ -48,6 +48,20 @@ function Courses() {
       <img src={fox} alt="" width={120} height={120} className="mx-auto size-28 animate-float" />
       <h1 className="mt-4 text-center text-3xl font-bold text-secondary">{t("chooseCourse")}</h1>
       <p className="mt-1 text-center text-muted-foreground">{t("chooseCourseSub")}</p>
+
+      <div className="mt-6 flex items-center justify-between gap-3 rounded-3xl border-2 border-primary/30 bg-primary/10 p-4 shadow-sm">
+        <div className="flex-1">
+          <p className="font-display font-bold text-secondary text-base">{t("placementCardTitle")}</p>
+          <p className="text-xs text-muted-foreground mt-0.5">{t("placementCardDesc")}</p>
+        </div>
+        <button
+          onClick={() => navigate({ to: "/placement" })}
+          className="btn-3d shrink-0 rounded-2xl bg-ember px-4 py-2 font-display text-xs font-bold text-primary-foreground shadow-[0_3px_0_var(--primary-shade)] hover:brightness-105"
+        >
+          {t("placementCta")}
+        </button>
+      </div>
+
       <div className="mt-8 space-y-4">
         {COURSES.map((c) => {
           const ids = lessonIdsOf(c);
