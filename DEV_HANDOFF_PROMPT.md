@@ -49,7 +49,7 @@ PORT=3000
 ```bash
 npm install        # Install all dependencies
 npm run dev        # Start TanStack Start development server
-npm test           # Run 242 Vitest unit & integration tests
+npm test           # Run 254 Vitest unit & integration tests
 npm run build      # Compile production client & SSR server
 ```
 
@@ -96,3 +96,12 @@ npx cap open ios
   - Task deduplication / coalescing with `dedupKey` for progress sync and quest updates.
   - Automatic reconnection listener (`online`), visibility recovery (`visibilitychange`), and cross-tab sync (`storage`).
   - Reactive hook `useMutationQueue()` providing real-time pending, failed, and processing indicators to the UI.
+
+- **Error Classification & Dead-Letter Queue Management (`src/lib/mutation-queue.ts`, `src/components/lingo/SyncQueueModal.tsx`)**:
+  - Classifies errors into Permanent (401/403 auth, 400 validation, 404, 409 conflict) vs. Transient (network drops, 5xx server errors, 429 rate limits).
+  - Permanent errors immediately transition to Dead-Letter state (`status: "failed"`) without wasting useless backoff retries.
+  - Tasks exceeding `maxRetries` safely move to Dead-Letter with granular manual retry (`retryMutation`), bulk retry (`retryFailedMutations`), and dismiss (`dismissMutation`).
+  - Interactive Sync Telemetry Modal (`SyncQueueModal.tsx`) displays live relative/countdown timings for last attempt and next scheduled attempt, categorized error badges, and failure reasons.
+- **Concurrent Multi-Device Reward Claim Integration Suite (`src/test/quests-concurrency.test.ts`)**:
+  - Full simulation of concurrent offline quest claims across two devices.
+  - Verifies exact deterministic reward tallying without duplicate rewards when both devices claim the same or overlapping quests upon reconnecting to the cloud.

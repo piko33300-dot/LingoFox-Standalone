@@ -3,17 +3,34 @@
  *
  * Provides a resilient, local-storage-backed FIFO queue for background operations
  * (cloud sync, quest claims, profile updates) with:
- * - Exponential backoff retries with jitter
+ * - Error classification: Permanent (auth, validation, 404, 409) vs. Transient (network, 5xx, 429)
+ * - Dead-letter queue for tasks exceeding max retries or hitting permanent errors
+ * - Exponential backoff retries with randomized jitter
  * - Automatic pause when offline & instant resumption when reconnected
  * - Concurrency mutex to prevent duplicate network races
  * - Deduplication / coalescing keys to avoid redundant operations
  * - Multi-tab synchronization via storage events
- * - React hook `useMutationQueue()` for live UI reactive status
+ * - Granular manual retry controls for individual and bulk failed operations
+ * - React hook `useMutationQueue()` for live UI reactive status & telemetry
  */
 
 import { useSyncExternalStore } from "react";
 
 export type MutationStatus = "pending" | "processing" | "failed" | "completed";
+
+export type ErrorCategory =
+  | "transient"
+  | "permanent"
+  | "network"
+  | "auth"
+  | "validation"
+  | "conflict";
+
+export interface ClassifiedError {
+  category: ErrorCategory;
+  isPermanent: boolean;
+  userMessage: string;
+}
 
 export interface MutationTask<TPayload = any> {
   id: string;
@@ -28,6 +45,8 @@ export interface MutationTask<TPayload = any> {
   lastAttemptAt?: number;
   status: MutationStatus;
   lastError?: string;
+  errorCategory?: ErrorCategory;
+  isPermanent?: boolean;
   dedupKey?: string;
 }
 
@@ -54,7 +73,9 @@ export interface QueueStats {
   isOnline: boolean;
   isProcessing: boolean;
   lastProcessedAt: number | null;
+  lastAttemptAt: number | null;
   nextScheduledAttemptAt: number | null;
+  failedTasks: MutationTask[];
 }
 
 const STORAGE_KEY = "lingofox:mutation-queue:v1";
@@ -75,6 +96,138 @@ const listeners = new Set<() => void>();
 
 function emitChange() {
   listeners.forEach((l) => l());
+}
+
+/**
+ * Classifies an unknown error into Permanent vs. Transient categories.
+ * Permanent errors (401, 403, 400, 422, 404, 409, invalid credentials) are halted immediately.
+ * Transient errors (network drop, timeout, 5xx, 429) back off and retry.
+ */
+export function classifyError(error: unknown): ClassifiedError {
+  if (!error) {
+    return {
+      category: "transient",
+      isPermanent: false,
+      userMessage: "فشل غير معروف مؤقت / Unknown transient error",
+    };
+  }
+
+  const err = error as any;
+  const status = Number(err?.status ?? err?.statusCode ?? err?.code ?? 0);
+  const rawMessage = (err?.message || err?.error_description || String(err)).toLowerCase();
+
+  // 1. Permanent Auth & Permission Errors
+  if (
+    status === 401 ||
+    status === 403 ||
+    rawMessage.includes("unauthorized") ||
+    rawMessage.includes("jwt expired") ||
+    rawMessage.includes("invalid_grant") ||
+    rawMessage.includes("permission denied") ||
+    rawMessage.includes("not authenticated") ||
+    rawMessage.includes("auth session missing")
+  ) {
+    return {
+      category: "auth",
+      isPermanent: true,
+      userMessage: "انتهت جلسة تسجيل الدخول أو تم رفض الصلاحيات (401/403)",
+    };
+  }
+
+  // 2. Permanent Validation & Bad Request Errors
+  if (
+    status === 400 ||
+    status === 422 ||
+    rawMessage.includes("validation") ||
+    rawMessage.includes("invalid payload") ||
+    rawMessage.includes("bad request") ||
+    rawMessage.includes("syntax error") ||
+    rawMessage.includes("schema violation")
+  ) {
+    return {
+      category: "validation",
+      isPermanent: true,
+      userMessage: "بيانات الطلب غير صالحة أو مرفوضة من الخادم (400)",
+    };
+  }
+
+  // 3. Permanent Resource Not Found
+  if (status === 404 || rawMessage.includes("not found")) {
+    return {
+      category: "permanent",
+      isPermanent: true,
+      userMessage: "المورد المطلوب غير موجود على الخادم (404)",
+    };
+  }
+
+  // 4. Permanent Conflict / Duplicate
+  if (
+    status === 409 ||
+    rawMessage.includes("conflict") ||
+    rawMessage.includes("already claimed") ||
+    rawMessage.includes("duplicate key")
+  ) {
+    return {
+      category: "conflict",
+      isPermanent: true,
+      userMessage: "تعارض في البيانات: العملية مسجلة بالفعل (409)",
+    };
+  }
+
+  // 5. Explicitly flagged permanent errors
+  if (err?.isPermanent === true || err?.permanent === true) {
+    return {
+      category: "permanent",
+      isPermanent: true,
+      userMessage: err?.message || "خطأ دائم لا يقبل إعادة المحاولة التلقائية",
+    };
+  }
+
+  // 6. Network Disconnections / Fetch Failures (Transient)
+  if (
+    !isNetworkOnline() ||
+    rawMessage.includes("failed to fetch") ||
+    rawMessage.includes("networkerror") ||
+    rawMessage.includes("timeout") ||
+    rawMessage.includes("abort") ||
+    rawMessage.includes("econnreset") ||
+    rawMessage.includes("enetunreach")
+  ) {
+    return {
+      category: "network",
+      isPermanent: false,
+      userMessage: "انقطاع أو بطء في اتصال الشبكة بالخادم",
+    };
+  }
+
+  // 7. Rate Limits (Transient with backoff)
+  if (
+    status === 429 ||
+    rawMessage.includes("rate limit") ||
+    rawMessage.includes("too many requests")
+  ) {
+    return {
+      category: "transient",
+      isPermanent: false,
+      userMessage: "تجاوز حد الطلبات المسموح به مؤقتاً (429)",
+    };
+  }
+
+  // 8. Server 5xx Internal Errors (Transient)
+  if (status >= 500 && status < 600) {
+    return {
+      category: "transient",
+      isPermanent: false,
+      userMessage: `الخادم غير متاح مؤقتاً (${status})`,
+    };
+  }
+
+  // Default to transient error
+  return {
+    category: "transient",
+    isPermanent: false,
+    userMessage: err?.message || "تعذر إكمال العملية مؤقتاً",
+  };
 }
 
 /**
@@ -177,7 +330,7 @@ export function enqueueMutation<T = any>(options: EnqueueOptions<T>): string {
     maxDelayMs = DEFAULT_MAX_DELAY_MS,
   } = options;
 
-  // Deduplication check: if a task with the same dedupKey is pending or processing, coalesce it
+  // Deduplication check: if a task with the same dedupKey is pending, processing, or failed, coalesce it
   if (dedupKey) {
     const existingIndex = tasks.findIndex(
       (t) =>
@@ -192,7 +345,9 @@ export function enqueueMutation<T = any>(options: EnqueueOptions<T>): string {
         payload,
         status: "pending",
         lastError: undefined,
-        // Reset nextAttemptAt so the latest coalesced state runs promptly
+        errorCategory: undefined,
+        isPermanent: undefined,
+        attempts: 0,
         nextAttemptAt: Date.now(),
       };
       tasks[existingIndex] = updated;
@@ -253,7 +408,7 @@ function scheduleDrain() {
 }
 
 /**
- * Processes the persistent queue, respecting exponential backoff and offline state.
+ * Processes the persistent queue, respecting exponential backoff, error classifications, and offline state.
  * Protected by a concurrency mutex to guarantee serialized execution per task.
  */
 export async function processQueue(force: boolean = false): Promise<{
@@ -311,15 +466,22 @@ export async function processQueue(force: boolean = false): Promise<{
 
         task.status = "completed";
         delete task.lastError;
+        delete task.errorCategory;
+        delete task.isPermanent;
         processed++;
       } catch (err: any) {
         task.attempts += 1;
-        task.lastError = err?.message ?? "Operation failed";
+        const classified = classifyError(err);
+        task.lastError = classified.userMessage;
+        task.errorCategory = classified.category;
+        task.isPermanent = classified.isPermanent;
 
-        if (task.attempts >= task.maxRetries) {
+        // Permanent error OR exceeded max retries -> Move to Dead-Letter (failed) list
+        if (classified.isPermanent || task.attempts >= task.maxRetries) {
           task.status = "failed";
           failed++;
         } else {
+          // Transient error with retries remaining -> Schedule exponential backoff
           task.status = "pending";
           const backoff = calculateBackoff(
             task.attempts,
@@ -350,7 +512,7 @@ export async function processQueue(force: boolean = false): Promise<{
   return { processed, failed, remaining: getPendingCount() };
 }
 
-/** Resets backoff and retries all failed tasks. */
+/** Resets backoff and manually retries all failed (dead-letter) tasks. */
 export async function retryFailedMutations(): Promise<{
   processed: number;
   failed: number;
@@ -366,6 +528,8 @@ export async function retryFailedMutations(): Promise<{
       t.attempts = 0;
       t.nextAttemptAt = now;
       delete t.lastError;
+      delete t.errorCategory;
+      delete t.isPermanent;
       modified = true;
     }
   }
@@ -378,7 +542,29 @@ export async function retryFailedMutations(): Promise<{
   return { processed: 0, failed: 0, remaining: getPendingCount() };
 }
 
-/** Cancels and removes a specific mutation task. */
+/** Manually retries a single specific failed mutation task. */
+export async function retryMutation(taskId: string): Promise<{
+  processed: number;
+  failed: number;
+  remaining: number;
+}> {
+  ensureInitialized();
+  const task = tasks.find((t) => t.id === taskId);
+  if (task && task.status === "failed") {
+    task.status = "pending";
+    task.attempts = 0;
+    task.nextAttemptAt = Date.now();
+    delete task.lastError;
+    delete task.errorCategory;
+    delete task.isPermanent;
+    saveTasksToStorage(tasks);
+    emitChange();
+    return await processQueue(true);
+  }
+  return { processed: 0, failed: 0, remaining: getPendingCount() };
+}
+
+/** Cancels and removes a specific mutation task from the queue. */
 export function cancelMutation(taskId: string): boolean {
   ensureInitialized();
   const index = tasks.findIndex((t) => t.id === taskId);
@@ -389,6 +575,11 @@ export function cancelMutation(taskId: string): boolean {
     return true;
   }
   return false;
+}
+
+/** Dismisses a failed task (alias for cancelMutation for UI clarity). */
+export function dismissMutation(taskId: string): boolean {
+  return cancelMutation(taskId);
 }
 
 /** Clears all completed mutation tasks from memory and storage. */
@@ -417,6 +608,18 @@ export function getQueueTasks(): MutationTask[] {
   return [...tasks];
 }
 
+/** Returns all failed (dead-letter) mutation tasks. */
+export function getFailedMutations(): MutationTask[] {
+  ensureInitialized();
+  return tasks.filter((t) => t.status === "failed");
+}
+
+/** Returns all pending mutation tasks. */
+export function getPendingMutations(): MutationTask[] {
+  ensureInitialized();
+  return tasks.filter((t) => t.status === "pending" || t.status === "processing");
+}
+
 function getPendingCount(): number {
   return tasks.filter((t) => t.status === "pending" || t.status === "processing").length;
 }
@@ -430,8 +633,14 @@ export function getQueueStats(): QueueStats {
   let failed = 0;
   let completed = 0;
   let nextScheduledAttemptAt: number | null = null;
+  let latestAttemptAt: number | null = lastProcessedAt;
+  const failedTasks: MutationTask[] = [];
 
   for (const t of tasks) {
+    if (t.lastAttemptAt && (latestAttemptAt === null || t.lastAttemptAt > latestAttemptAt)) {
+      latestAttemptAt = t.lastAttemptAt;
+    }
+
     if (t.status === "pending") {
       pending++;
       if (nextScheduledAttemptAt === null || t.nextAttemptAt < nextScheduledAttemptAt) {
@@ -441,6 +650,7 @@ export function getQueueStats(): QueueStats {
       processing++;
     } else if (t.status === "failed") {
       failed++;
+      failedTasks.push({ ...t });
     } else if (t.status === "completed") {
       completed++;
     }
@@ -455,8 +665,57 @@ export function getQueueStats(): QueueStats {
     isOnline: isNetworkOnline(),
     isProcessing,
     lastProcessedAt,
+    lastAttemptAt: latestAttemptAt,
     nextScheduledAttemptAt,
+    failedTasks,
   };
+}
+
+/**
+ * Human-readable relative time helper for telemetry and badges.
+ */
+export function formatTimeDifference(
+  timestamp: number | null,
+  now: number = Date.now(),
+  isFuture: boolean = false,
+  lang: "ar" | "en" = "ar"
+): string {
+  if (!timestamp) {
+    return lang === "ar" ? "لا يوجد" : "None";
+  }
+  const diffMs = isFuture ? timestamp - now : now - timestamp;
+  if (diffMs <= 0 && isFuture) {
+    return lang === "ar" ? "الآن" : "Now";
+  }
+  const sec = Math.max(0, Math.floor(diffMs / 1000));
+  if (sec < 5 && !isFuture) {
+    return lang === "ar" ? "الآن" : "Just now";
+  }
+  if (sec < 60) {
+    return lang === "ar"
+      ? isFuture
+        ? `خلال ${sec} ثانية`
+        : `قبل ${sec} ثانية`
+      : isFuture
+      ? `in ${sec}s`
+      : `${sec}s ago`;
+  }
+  const min = Math.floor(sec / 60);
+  if (min < 60) {
+    return lang === "ar"
+      ? isFuture
+        ? `خلال ${min} دقيقة`
+        : `قبل ${min} دقيقة`
+      : isFuture
+      ? `in ${min}m`
+      : `${min}m ago`;
+  }
+  const d = new Date(timestamp);
+  return d.toLocaleTimeString(lang === "ar" ? "ar-EG" : "en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
 }
 
 /**
@@ -538,7 +797,9 @@ const serverStatsSnapshot: QueueStats = {
   isOnline: true,
   isProcessing: false,
   lastProcessedAt: null,
+  lastAttemptAt: null,
   nextScheduledAttemptAt: null,
+  failedTasks: [],
 };
 
 /**

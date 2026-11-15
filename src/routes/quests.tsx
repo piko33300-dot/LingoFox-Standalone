@@ -20,6 +20,7 @@ import { toast } from "sonner";
 import { TopBar } from "@/components/lingo/TopBar";
 import { AppPage, BottomNav } from "@/components/lingo/BottomNav";
 import { FoxMascot, type FoxMood } from "@/components/lingo/FoxMascot";
+import { SyncQueueModal } from "@/components/lingo/SyncQueueModal";
 import { useProgress, progressActions } from "@/lib/progress-store";
 import {
   evaluateDailyQuests,
@@ -144,58 +145,7 @@ function QuestsPage() {
                   </span>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={async () => {
-                    if (queue.failed > 0) {
-                      retryFailedMutations();
-                    }
-                    const ok = await syncNow();
-                    if (ok) toast.success(t("syncSuccessToast"));
-                  }}
-                  className={cn(
-                    "inline-flex items-center gap-1.5 rounded-xl px-3 py-1 text-xs font-semibold transition-colors cursor-pointer",
-                    sync.status === "syncing" || queue.isProcessing
-                      ? "bg-primary/10 text-primary"
-                      : !sync.isOnline
-                      ? "bg-amber-500/10 text-amber-600 dark:text-amber-400"
-                      : queue.failed > 0
-                      ? "bg-rose-500/15 text-rose-600 dark:text-rose-400 hover:bg-rose-500/25"
-                      : sync.hasPendingSync || queue.pending > 0
-                      ? "bg-ember/15 text-ember hover:bg-ember/25"
-                      : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-                  )}
-                  title={sync.isOnline ? t("syncStatusOnline") : t("syncStatusOffline")}
-                >
-                  {sync.status === "syncing" || queue.isProcessing ? (
-                    <>
-                      <RefreshCw className="size-3.5 animate-spin" />
-                      <span>{queue.pending > 0 ? t("syncQueueRetrying") : t("syncStatusSyncing")}</span>
-                    </>
-                  ) : !sync.isOnline ? (
-                    <>
-                      <CloudOff className="size-3.5" />
-                      <span>
-                        {t("syncStatusOffline")}
-                        {queue.pending > 0 ? ` (${queue.pending})` : ""}
-                      </span>
-                    </>
-                  ) : queue.failed > 0 ? (
-                    <>
-                      <RefreshCw className="size-3.5" />
-                      <span>{t("syncQueueFailed", { count: queue.failed })}</span>
-                    </>
-                  ) : (
-                    <>
-                      <Cloud className="size-3.5" />
-                      <span>
-                        {sync.hasPendingSync || queue.pending > 0
-                          ? `${t("syncNow")}${queue.pending > 0 ? ` (${queue.pending})` : ""}`
-                          : t("syncStatusOnline")}
-                      </span>
-                    </>
-                  )}
-                </button>
+                <SyncQueueModal />
               </div>
             </div>
           </div>

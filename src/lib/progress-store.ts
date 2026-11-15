@@ -162,23 +162,50 @@ export function mergeProgress(a: Progress, b: Progress): Progress {
   }
 
   // Double-claim prevention & deterministic quest reward reconciliation
-  const claimedInBase = getAllClaimedQuests(base);
-  const claimedInOther = getAllClaimedQuests(other);
+  const claimedInA = getAllClaimedQuests(a);
+  const claimedInB = getAllClaimedQuests(b);
+  const allUniqueClaimed = new Set([...claimedInA, ...claimedInB]);
 
-  let bonusGemsFromOther = 0;
-  let bonusXpFromOther = 0;
-  for (const qid of claimedInOther) {
-    if (!claimedInBase.has(qid)) {
-      const rew = getQuestReward(qid);
-      if (rew) {
-        bonusGemsFromOther += rew.gems;
-        bonusXpFromOther += rew.xp;
-      }
+  let questGemsInA = 0;
+  let questXpInA = 0;
+  for (const qid of claimedInA) {
+    const rew = getQuestReward(qid);
+    if (rew) {
+      questGemsInA += rew.gems;
+      questXpInA += rew.xp;
     }
   }
 
-  const mergedGems = Math.max(base.gems, other.gems) + bonusGemsFromOther;
-  const mergedXp = Math.max(base.xp, other.xp) + bonusXpFromOther;
+  let questGemsInB = 0;
+  let questXpInB = 0;
+  for (const qid of claimedInB) {
+    const rew = getQuestReward(qid);
+    if (rew) {
+      questGemsInB += rew.gems;
+      questXpInB += rew.xp;
+    }
+  }
+
+  const nonQuestGemsA = Math.max(0, a.gems - questGemsInA);
+  const nonQuestGemsB = Math.max(0, b.gems - questGemsInB);
+  const baseNonQuestGems = Math.max(nonQuestGemsA, nonQuestGemsB);
+
+  const nonQuestXpA = Math.max(0, a.xp - questXpInA);
+  const nonQuestXpB = Math.max(0, b.xp - questXpInB);
+  const baseNonQuestXp = Math.max(nonQuestXpA, nonQuestXpB);
+
+  let totalUniqueQuestGems = 0;
+  let totalUniqueQuestXp = 0;
+  for (const qid of allUniqueClaimed) {
+    const rew = getQuestReward(qid);
+    if (rew) {
+      totalUniqueQuestGems += rew.gems;
+      totalUniqueQuestXp += rew.xp;
+    }
+  }
+
+  const mergedGems = baseNonQuestGems + totalUniqueQuestGems;
+  const mergedXp = baseNonQuestXp + totalUniqueQuestXp;
 
   return {
     ...base,
