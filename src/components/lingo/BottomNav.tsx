@@ -6,6 +6,7 @@ import logoBadge from "@/assets/logo-badge.png";
 
 const ITEMS = [
   { to: "/learn", icon: Home, key: "learn" },
+  { to: "/practice", icon: Repeat, key: "practiceTitle" },
   { to: "/tutor", icon: MessageCircle, key: "tutor" },
   { to: "/leaderboard", icon: Trophy, key: "leaderboard" },
   { to: "/profile", icon: User, key: "profile" },
@@ -14,7 +15,6 @@ const ITEMS = [
 /** Extra destinations shown only in the wide-screen side rail. */
 const WIDE_ITEMS = [
   { to: "/stories", icon: BookOpen, key: "storiesTitle" },
-  { to: "/practice", icon: Repeat, key: "practiceTitle" },
 ] as const;
 
 /** Bottom tab bar on phones; a side rail on wide screens. */
@@ -23,16 +23,16 @@ export function BottomNav() {
   return (
     <>
       <nav className="glass fixed inset-x-0 bottom-0 z-30 border-t border-border/70 lg:hidden">
-        <div className="mx-auto grid max-w-md grid-cols-4 px-2 pb-[max(env(safe-area-inset-bottom),0.5rem)] pt-2">
+        <div className="mx-auto grid max-w-md grid-cols-5 px-1 pb-[max(env(safe-area-inset-bottom),0.5rem)] pt-1.5">
           {ITEMS.map(({ to, icon: Icon, key }) => (
             <Link
               key={to}
               to={to}
-              className="flex flex-col items-center gap-0.5 rounded-2xl py-1.5 font-display text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
-              activeProps={{ className: "bg-secondary text-secondary-foreground shadow-soft" }}
+              className="flex flex-col items-center gap-0.5 rounded-2xl py-1 font-display text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+              activeProps={{ className: "bg-secondary text-secondary-foreground shadow-soft font-semibold" }}
             >
-              <Icon className="size-6" />
-              {t(key)}
+              <Icon className="size-5 shrink-0" />
+              <span className="truncate max-w-[56px] text-center leading-tight">{t(key)}</span>
             </Link>
           ))}
         </div>
@@ -51,8 +51,8 @@ export function BottomNav() {
               className="flex items-center gap-3 rounded-2xl px-4 py-3 font-display font-medium text-secondary-foreground/70 transition-colors hover:bg-secondary-foreground/10 hover:text-secondary-foreground"
               activeProps={{ className: "bg-secondary-foreground/15 text-secondary-foreground ring-1 ring-secondary-foreground/20" }}
             >
-              <Icon className="size-6" />
-              {t(key)}
+              <Icon className="size-6 shrink-0" />
+              <span>{t(key)}</span>
             </Link>
           ))}
         </div>

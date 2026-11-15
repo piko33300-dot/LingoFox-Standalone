@@ -228,6 +228,25 @@ export const progressActions = {
     return { xp: XP_PER_PRACTICE, gems: 0, freezeUsed: used, heartRestored: earnedHeart };
   },
   /** Finish reading a story: full reward the first time, a smaller one on re-reads. Both keep the streak. */
+  completeSpeedChallenge(matches: number) {
+    const today = new Date();
+    const t = dayKey(today);
+    const used = freezesUsed(state.lastActiveDate, today, state.freezes);
+    const streak = nextStreak(state.streak, state.lastActiveDate, today, state.freezes);
+    const earnedXp = Math.max(5, matches * 2);
+    const earnedGems = matches >= 5 ? Math.floor(matches / 2) : 0;
+    set({
+      ...state,
+      freezes: state.freezes - used,
+      xp: state.xp + earnedXp,
+      gems: state.gems + earnedGems,
+      streak,
+      longestStreak: Math.max(state.longestStreak, streak),
+      lastActiveDate: t,
+      xpByDay: { ...state.xpByDay, [t]: (state.xpByDay[t] ?? 0) + earnedXp },
+    });
+    return { earnedXp, earnedGems, freezeUsed: used };
+  },
   completeStory(storyId: string) {
     const today = new Date();
     const t = dayKey(today);

@@ -88,3 +88,18 @@ export function pickPractice(review: ReviewState, completed: string[], courseId:
   }
   return items;
 }
+
+
+/**
+ * Picks a drill session for heart restoration or general practice directly from a course units.
+ * Always returns questions even if the learner has 0 completed lessons.
+ */
+export function pickDrillSession(courseId: CourseId, limit = 5): { key: string; question: Question }[] {
+  const items: { key: string; question: Question }[] = [];
+  for (let i = 0; i < limit; i++) {
+    const key = `${courseId}-basics:${i}`;
+    const found = findQuestion(key);
+    if (found) items.push({ key, question: found.question });
+  }
+  return items;
+}

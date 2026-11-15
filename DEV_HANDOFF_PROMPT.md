@@ -69,3 +69,10 @@ npx cap sync
 npx cap open android
 npx cap open ios
 ```
+\n
+### 4. Practice Hub, Speed Challenge & Interactive TopBar (V1.0 Milestone)
+- **TopBar Modals**: Tap hearts, gems, or streak to trigger rich interactive dialogs showing heart countdown timers, instant refill via gems/practice, and streak freeze protections.
+- **Heart Recovery Drill**: Learners with 0 or low hearts can take targeted 5-question drills (`/practice`) to immediately restore hearts without waiting for the 4-hour cooldown or spending gems.
+- **Match Madness (60s Timed Challenge)**: High-energy word-matching mini-game that challenges learners against the clock with combo sounds, animated feedback, and XP/gems rewards.
+- **Vocabulary Vault**: Searchable repository of all vocabulary introduced in the course with native voice pronunciation (`speak()`) and unit tags.
+- **Mobile Navigation**: 5-tab BottomNav highlighting direct access to the Practice Hub.

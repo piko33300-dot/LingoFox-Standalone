@@ -328,3 +328,61 @@ export const MAX_HEARTS = 5;
 export const REFILL_COST = 50;
 export const MAX_REWARDED_ADS_PER_DAY = 5;
 export const DAILY_GOAL_OPTIONS = [10, 20, 30, 50] as const;
+
+
+export type VocabItem = {
+  word: string;
+  translation: string;
+  unitId: string;
+  unitTitle: Localized;
+};
+
+export function getCourseVocabulary(course: Course): VocabItem[] {
+  const seen = new Set<string>();
+  const items: VocabItem[] = [];
+
+  for (const unit of course.units) {
+    for (const q of unit.questions) {
+      if (q.type === "mc" && q.word && q.answer) {
+        const cleanWord = q.word.trim();
+        const key = cleanWord.toLowerCase();
+        if (!seen.has(key)) {
+          seen.add(key);
+          items.push({
+            word: cleanWord,
+            translation: q.answer.trim(),
+            unitId: unit.id,
+            unitTitle: unit.title,
+          });
+        }
+      } else if (q.type === "match") {
+        for (const [target, native] of q.pairs) {
+          const cleanWord = target.trim();
+          const key = cleanWord.toLowerCase();
+          if (!seen.has(key)) {
+            seen.add(key);
+            items.push({
+              word: cleanWord,
+              translation: native.trim(),
+              unitId: unit.id,
+              unitTitle: unit.title,
+            });
+          }
+        }
+      } else if (q.type === "listen" && q.text) {
+        const cleanWord = q.text.trim();
+        const key = cleanWord.toLowerCase();
+        if (!seen.has(key) && cleanWord.split(" ").length <= 2) {
+          seen.add(key);
+          items.push({
+            word: cleanWord,
+            translation: q.answer.trim(),
+            unitId: unit.id,
+            unitTitle: unit.title,
+          });
+        }
+      }
+    }
+  }
+  return items;
+}
