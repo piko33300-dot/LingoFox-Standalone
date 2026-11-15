@@ -10,6 +10,14 @@ import {
   subscribeProgress,
 } from "./progress-store";
 import { weekStart, weekXp } from "./leagues";
+import {
+  enqueueMutation,
+  processQueue,
+  registerMutationHandler,
+  startMutationQueue,
+  type QueueStats,
+  getQueueStats,
+} from "./mutation-queue";
 
 export type SyncStatus = "idle" | "syncing" | "offline" | "error";
 
@@ -19,6 +27,7 @@ export interface SyncState {
   hasPendingSync: boolean;
   lastSyncedAt: Date | null;
   lastError: string | null;
+  queuedCount: number;
 }
 
 type AccountState = { user: User | null; role: string | null; ready: boolean };
@@ -35,6 +44,7 @@ let syncState: SyncState = {
   hasPendingSync: false,
   lastSyncedAt: null,
   lastError: null,
+  queuedCount: 0,
 };
 
 const syncListeners = new Set<() => void>();
@@ -58,13 +68,8 @@ async function fetchRole(userId: string): Promise<string> {
   }
 }
 
-/** Synchronizes local progress bidirectionally with the cloud database. */
-export async function syncCloudProgress(userId: string): Promise<boolean> {
-  if (typeof navigator !== "undefined" && !navigator.onLine) {
-    emitSync({ ...syncState, isOnline: false, status: "offline", hasPendingSync: true });
-    return false;
-  }
-
+/** Low-level core execution of bidirectional cloud synchronization. */
+export async function executeCloudProgressSync(userId: string): Promise<boolean> {
   if (syncMutex) {
     queuedSyncRerun = true;
     return true;
@@ -90,7 +95,7 @@ export async function syncCloudProgress(userId: string): Promise<boolean> {
     progressActions.hydrate(merged);
 
     // 3. Push unified progress to cloud tables
-    await Promise.all([
+    const [upsertProg, updateProf] = await Promise.all([
       supabase.from("user_progress").upsert(
         { user_id: userId, data: merged as unknown as Json },
         { onConflict: "user_id" }
@@ -100,6 +105,9 @@ export async function syncCloudProgress(userId: string): Promise<boolean> {
         streak: displayStreak(merged, new Date()),
       }).eq("id", userId),
     ]);
+
+    if (upsertProg.error) throw upsertProg.error;
+    if (updateProf.error) throw updateProf.error;
 
     // 4. Update weekly league table if active this week
     const week = weekXp(merged.xpByDay, new Date());
@@ -113,24 +121,28 @@ export async function syncCloudProgress(userId: string): Promise<boolean> {
       if (weekErr) console.warn("weekly xp sync failed", weekErr.message);
     }
 
+    const qStats = getQueueStats();
     emitSync({
       ...syncState,
       status: "idle",
       isOnline: true,
-      hasPendingSync: false,
+      hasPendingSync: qStats.pending > 0,
       lastSyncedAt: new Date(),
       lastError: null,
+      queuedCount: qStats.pending,
     });
     return true;
   } catch (err: any) {
-    console.warn("Cloud sync encountered network issue, will retry on reconnect:", err?.message);
+    console.warn("Cloud sync encountered network issue, queued for exponential retry:", err?.message);
     const isOff = typeof navigator !== "undefined" && !navigator.onLine;
+    const qStats = getQueueStats();
     emitSync({
       ...syncState,
       status: isOff ? "offline" : "error",
       isOnline: !isOff,
       hasPendingSync: true,
       lastError: err?.message ?? "Network sync error",
+      queuedCount: qStats.pending,
     });
     return false;
   } finally {
@@ -138,16 +150,65 @@ export async function syncCloudProgress(userId: string): Promise<boolean> {
     syncMutex = false;
     if (queuedSyncRerun) {
       queuedSyncRerun = false;
-      void syncCloudProgress(userId);
+      void executeCloudProgressSync(userId);
     }
   }
+}
+
+/**
+ * Synchronizes local progress bidirectionally with the cloud database.
+ * If offline or if the request fails, it is automatically routed to the
+ * persistent mutation queue for exponential backoff retries.
+ */
+export async function syncCloudProgress(userId: string): Promise<boolean> {
+  const isOnline = typeof navigator !== "undefined" ? navigator.onLine : true;
+
+  if (!isOnline) {
+    enqueueMutation({
+      type: "sync_progress",
+      payload: { userId },
+      dedupKey: `sync_progress:${userId}`,
+    });
+    const qStats = getQueueStats();
+    emitSync({
+      ...syncState,
+      isOnline: false,
+      status: "offline",
+      hasPendingSync: true,
+      queuedCount: qStats.pending,
+    });
+    return false;
+  }
+
+  // Attempt live sync first
+  const ok = await executeCloudProgressSync(userId);
+  if (!ok) {
+    // Enqueue in persistent queue for exponential backoff retry
+    enqueueMutation({
+      type: "sync_progress",
+      payload: { userId },
+      dedupKey: `sync_progress:${userId}`,
+    });
+    const qStats = getQueueStats();
+    emitSync({
+      ...syncState,
+      hasPendingSync: true,
+      queuedCount: qStats.pending,
+    });
+  }
+  return ok;
 }
 
 /** Explicit manual sync trigger available to UI buttons and retry actions. */
 export async function syncNow(): Promise<boolean> {
   const uid = account.user?.id;
   if (!uid) return true;
-  return syncCloudProgress(uid);
+  // Trigger both live sync and persistent queue drainage
+  const [syncOk] = await Promise.all([
+    syncCloudProgress(uid),
+    processQueue(true),
+  ]);
+  return syncOk;
 }
 
 /** Start auth tracking + cloud progress sync once, in the browser. */
@@ -155,16 +216,26 @@ export function startAccount(onIdentityChange: () => void) {
   if (started || typeof window === "undefined") return;
   started = true;
 
+  // Initialize persistent mutation queue and register sync handler
+  startMutationQueue();
+  registerMutationHandler<{ userId: string }>("sync_progress", async ({ userId }) => {
+    const ok = await executeCloudProgressSync(userId);
+    if (!ok) throw new Error("Sync failed, will retry with backoff");
+    return true;
+  });
+
   // Listen to network reconnection
   window.addEventListener("online", () => {
-    emitSync({ ...syncState, isOnline: true });
+    const qStats = getQueueStats();
+    emitSync({ ...syncState, isOnline: true, queuedCount: qStats.pending });
     if (account.user) {
       void syncCloudProgress(account.user.id);
     }
   });
 
   window.addEventListener("offline", () => {
-    emitSync({ ...syncState, isOnline: false, status: "offline" });
+    const qStats = getQueueStats();
+    emitSync({ ...syncState, isOnline: false, status: "offline", queuedCount: qStats.pending });
   });
 
   // Re-check sync when returning from background / mobile tab switch
@@ -198,11 +269,24 @@ export function startAccount(onIdentityChange: () => void) {
     if (!uid || pulling) return;
 
     if (typeof navigator !== "undefined" && !navigator.onLine) {
-      emitSync({ ...syncState, hasPendingSync: true, status: "offline", isOnline: false });
+      enqueueMutation({
+        type: "sync_progress",
+        payload: { userId: uid },
+        dedupKey: `sync_progress:${uid}`,
+      });
+      const qStats = getQueueStats();
+      emitSync({
+        ...syncState,
+        hasPendingSync: true,
+        status: "offline",
+        isOnline: false,
+        queuedCount: qStats.pending,
+      });
       return;
     }
 
-    emitSync({ ...syncState, hasPendingSync: true });
+    const qStats = getQueueStats();
+    emitSync({ ...syncState, hasPendingSync: true, queuedCount: qStats.pending });
     if (pushTimer) clearTimeout(pushTimer);
     pushTimer = setTimeout(() => {
       void syncCloudProgress(uid);
@@ -256,6 +340,7 @@ const serverSyncSnapshot: SyncState = {
   hasPendingSync: false,
   lastSyncedAt: null,
   lastError: null,
+  queuedCount: 0,
 };
 
 export function useSyncStatus(): SyncState {

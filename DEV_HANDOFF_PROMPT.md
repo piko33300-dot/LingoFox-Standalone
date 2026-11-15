@@ -49,7 +49,7 @@ PORT=3000
 ```bash
 npm install        # Install all dependencies
 npm run dev        # Start TanStack Start development server
-npm test           # Run 229 Vitest unit & integration tests
+npm test           # Run 242 Vitest unit & integration tests
 npm run build      # Compile production client & SSR server
 ```
 
@@ -88,3 +88,11 @@ npx cap open ios
   - Global idempotency verification (`isQuestClaimed`) preventing any quest reward from ever being claimed twice, regardless of date boundaries.
   - Deterministic multi-device reward reconciliation in `mergeProgress`, accurately preserving offline rewards without duplication.
   - Automatic reconnection sync listener (`online`, `visibilitychange`) with concurrency mutex and real-time UI status (`useSyncStatus`).
+
+- **Persistent Mutation Queue & Exponential Backoff (`src/lib/mutation-queue.ts`, `src/lib/account.ts`)**:
+  - Resilient local-storage-backed FIFO queue preserving offline operations across browser sessions and tab reloads.
+  - Exponential backoff calculation (`calculateBackoff`) with randomized jitter to prevent thundering-herd API congestion.
+  - Concurrency mutex guaranteeing serialized processing without racing or duplicates.
+  - Task deduplication / coalescing with `dedupKey` for progress sync and quest updates.
+  - Automatic reconnection listener (`online`), visibility recovery (`visibilitychange`), and cross-tab sync (`storage`).
+  - Reactive hook `useMutationQueue()` providing real-time pending, failed, and processing indicators to the UI.
