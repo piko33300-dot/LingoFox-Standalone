@@ -442,7 +442,7 @@ function GameOver({ gems, adsLeft, onRefill, onWatchAd, onQuit }: { gems: number
   );
 }
 
-function Complete({ reward, perfect, practice, onContinue }: { reward: { xp: number; gems: number; freezeUsed: number }; perfect: boolean; practice: boolean; onContinue: () => void }) {
+function Complete({ reward, perfect, practice, onContinue }: { reward: { xp: number; gems: number; freezeUsed: number; heartRestored?: boolean }; perfect: boolean; practice: boolean; onContinue: () => void }) {
   const p = useProgress();
   const { t } = useT();
   const bonus = lessonReward(0).xp - lessonReward(1).xp;
@@ -457,6 +457,12 @@ function Complete({ reward, perfect, practice, onContinue }: { reward: { xp: num
         <h1 className="mt-4 text-4xl font-bold text-primary">{t(practice ? "practiceDone" : "lessonComplete")}</h1>
         {reward.freezeUsed > 0 && <p className="mt-2 font-display font-semibold text-gem">{t("freezeSaved", { n: reward.freezeUsed })}</p>}
         {perfect && !practice && <p className="mt-2 font-display font-semibold text-success-shade">{t("perfectLesson", { n: bonus })}</p>}
+        {reward.heartRestored && (
+          <p className="mt-2 inline-flex items-center justify-center gap-1.5 rounded-full bg-heart/15 px-3.5 py-1 font-display text-sm font-bold text-heart animate-bounce">
+            <Heart className="size-4 fill-heart" />
+            <span>{t("heartRestored")}</span>
+          </p>
+        )}
         <div className="mt-6 grid grid-cols-3 gap-3">
           <Tile label={t("earned")} value={`+${reward.xp}`} icon={<Zap className="size-5 fill-primary-foreground" />} tone="bg-primary" />
           <Tile label={t("gems")} value={`+${reward.gems}`} icon={<Gem className="size-5" />} tone="bg-gem" />

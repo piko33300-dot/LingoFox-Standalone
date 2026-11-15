@@ -24,6 +24,7 @@ export type Progress = {
   longestStreak: number;
   lastActiveDate: string | null; // YYYY-MM-DD (UTC)
   hearts: number;
+  lastHeartLostAt: number | null;
   completed: string[];
   course: CourseId | null;
   dailyGoal: number;
@@ -39,6 +40,7 @@ export type Progress = {
   stories: string[];
 };
 
+export const HEART_REGEN_INTERVAL_MS = 4 * 60 * 60 * 1000;
 const KEY = "lingofox-progress-v2";
 export const initialProgress: Progress = {
   xp: 0,
@@ -47,6 +49,7 @@ export const initialProgress: Progress = {
   longestStreak: 0,
   lastActiveDate: null,
   hearts: MAX_HEARTS,
+  lastHeartLostAt: null,
   completed: [],
   course: null,
   dailyGoal: 20,
@@ -73,7 +76,21 @@ export function sanitizeProgress(raw: unknown): Progress {
     streak: num(r.streak, 0),
     longestStreak: num(r.longestStreak, num(r.streak, 0)),
     lastActiveDate: typeof r.lastActiveDate === "string" ? r.lastActiveDate : null,
-    hearts: Math.min(MAX_HEARTS, num(r.hearts, MAX_HEARTS)),
+    ...(() => {
+      let hearts = Math.min(MAX_HEARTS, num(r.hearts, MAX_HEARTS));
+      let lastHeartLostAt = typeof r.lastHeartLostAt === "number" && Number.isFinite(r.lastHeartLostAt) ? r.lastHeartLostAt : null;
+      if (hearts < MAX_HEARTS && lastHeartLostAt) {
+        const elapsed = Math.max(0, Date.now() - lastHeartLostAt);
+        const recovered = Math.floor(elapsed / HEART_REGEN_INTERVAL_MS);
+        if (recovered > 0) {
+          hearts = Math.min(MAX_HEARTS, hearts + recovered);
+          lastHeartLostAt = hearts >= MAX_HEARTS ? null : lastHeartLostAt + recovered * HEART_REGEN_INTERVAL_MS;
+        }
+      } else if (hearts >= MAX_HEARTS) {
+        lastHeartLostAt = null;
+      }
+      return { hearts, lastHeartLostAt };
+    })(),
     completed: Array.isArray(r.completed) ? r.completed.filter((x): x is string => typeof x === "string") : [],
     course: COURSE_IDS.includes(r.course as CourseId) ? (r.course as CourseId) : null,
     dailyGoal: num(r.dailyGoal, 20),
@@ -132,6 +149,7 @@ export function mergeProgress(a: Progress, b: Progress): Progress {
     review: mergeReview(a.review, b.review),
     freezes: Math.max(a.freezes, b.freezes),
     stories: Array.from(new Set([...a.stories, ...b.stories])),
+    lastHeartLostAt: a.hearts < b.hearts ? a.lastHeartLostAt : b.lastHeartLostAt,
   };
 }
 
@@ -144,17 +162,21 @@ export const progressActions = {
   hydrate(next: Progress) { set(next); },
   setCourse(course: CourseId) { set({ ...state, course }); },
   setDailyGoal(goal: number) { set({ ...state, dailyGoal: goal }); },
-  loseHeart() { set({ ...state, hearts: Math.max(0, state.hearts - 1) }); },
+  loseHeart() {
+    const nextHearts = Math.max(0, state.hearts - 1);
+    const lastHeartLostAt = nextHearts < MAX_HEARTS ? (state.lastHeartLostAt ?? Date.now()) : null;
+    set({ ...state, hearts: nextHearts, lastHeartLostAt });
+  },
   refillHearts(): boolean {
     if (state.gems < REFILL_COST) return false;
-    set({ ...state, hearts: MAX_HEARTS, gems: state.gems - REFILL_COST });
+    set({ ...state, hearts: MAX_HEARTS, lastHeartLostAt: null, gems: state.gems - REFILL_COST });
     return true;
   },
   rewardAd(): boolean {
     const today = dayKey(new Date());
     const seen = state.adsByDay[today] ?? 0;
     if (seen >= MAX_REWARDED_ADS_PER_DAY) return false;
-    set({ ...state, hearts: MAX_HEARTS, adsByDay: { ...state.adsByDay, [today]: seen + 1 } });
+    set({ ...state, hearts: MAX_HEARTS, lastHeartLostAt: null, adsByDay: { ...state.adsByDay, [today]: seen + 1 } });
     return true;
   },
   completeLesson(lessonId: string, mistakes: number) {
@@ -189,8 +211,13 @@ export const progressActions = {
     const t = dayKey(today);
     const used = freezesUsed(state.lastActiveDate, today, state.freezes);
     const streak = nextStreak(state.streak, state.lastActiveDate, today, state.freezes);
+    const earnedHeart = state.hearts < MAX_HEARTS;
+    const nextHearts = earnedHeart ? state.hearts + 1 : state.hearts;
+    const lastHeartLostAt = nextHearts >= MAX_HEARTS ? null : state.lastHeartLostAt;
     set({
       ...state,
+      hearts: nextHearts,
+      lastHeartLostAt,
       freezes: state.freezes - used,
       xp: state.xp + XP_PER_PRACTICE,
       streak,
@@ -198,7 +225,7 @@ export const progressActions = {
       lastActiveDate: t,
       xpByDay: { ...state.xpByDay, [t]: (state.xpByDay[t] ?? 0) + XP_PER_PRACTICE },
     });
-    return { xp: XP_PER_PRACTICE, gems: 0, freezeUsed: used };
+    return { xp: XP_PER_PRACTICE, gems: 0, freezeUsed: used, heartRestored: earnedHeart };
   },
   /** Finish reading a story: full reward the first time, a smaller one on re-reads. Both keep the streak. */
   completeStory(storyId: string) {

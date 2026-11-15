@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { displayStreak, initialProgress, lessonReward, mergeProgress, nextStreak } from "@/lib/progress-store";
+import { displayStreak, initialProgress, lessonReward, mergeProgress, nextStreak, sanitizeProgress, progressActions, HEART_REGEN_INTERVAL_MS } from "@/lib/progress-store";
+import { playSound } from "@/lib/sound";
 import { achievementStatus } from "@/lib/achievements";
 import { findLesson, isTypedAnswerCorrect, normalizeAnswer, REFILL_COST, MAX_REWARDED_ADS_PER_DAY, type TypeQuestion } from "@/lib/lessons";
 
@@ -50,5 +51,39 @@ describe("achievements", () => {
   it("polyglot needs lessons in both courses", () => {
     const s = achievementStatus({ ...initialProgress, completed: ["en-basics-1", "ar-basics-1"] });
     expect(s.find((a) => a.id === "polyglot")?.unlocked).toBe(true);
+  });
+});
+
+describe("hearts system & audio", () => {
+  it("regenerates 1 heart after 4 hours", () => {
+    const fourHoursAgo = Date.now() - HEART_REGEN_INTERVAL_MS - 1000;
+    const p = sanitizeProgress({ hearts: 3, lastHeartLostAt: fourHoursAgo });
+    expect(p.hearts).toBe(4);
+  });
+
+  it("caps hearts regeneration at MAX_HEARTS", () => {
+    const twoDaysAgo = Date.now() - (48 * 60 * 60 * 1000);
+    const p = sanitizeProgress({ hearts: 1, lastHeartLostAt: twoDaysAgo });
+    expect(p.hearts).toBe(5);
+    expect(p.lastHeartLostAt).toBeNull();
+  });
+
+  it("practice completes and restores 1 heart if depleted", () => {
+    progressActions.reset();
+    progressActions.loseHeart();
+    expect(progressActions.get().hearts).toBe(4);
+    const res = progressActions.completePractice();
+    expect(res.heartRestored).toBe(true);
+    expect(progressActions.get().hearts).toBe(5);
+  });
+
+  it("playSound executes safely for all sound kinds", () => {
+    expect(() => {
+      playSound("correct");
+      playSound("wrong");
+      playSound("complete");
+      playSound("streak");
+      playSound("tap");
+    }).not.toThrow();
   });
 });

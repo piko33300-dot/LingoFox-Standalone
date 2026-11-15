@@ -2,17 +2,16 @@ import { useEffect, useState } from "react";
 import { Bell } from "lucide-react";
 import { toast } from "sonner";
 import { useT } from "@/lib/i18n";
-import { useIsNativeApp } from "@/lib/native";
-import { reminderEnabled, setDailyReminder } from "@/lib/reminders";
+import { reminderEnabled, remindersSupported, setDailyReminder } from "@/lib/reminders";
 import { Switch } from "@/components/ui/switch";
 
-/** Daily reminder switch; only shown inside the Android / iPhone apps. */
+/** Daily reminder switch: supported on Android / iPhone native apps and desktop/mobile PWA. */
 export function ReminderCard() {
   const { t } = useT();
-  const native = useIsNativeApp();
+  const supported = remindersSupported();
   const [on, setOn] = useState(false);
   useEffect(() => { setOn(reminderEnabled()); }, []);
-  if (!native) return null;
+  if (!supported) return null;
 
   async function toggle(next: boolean) {
     try {

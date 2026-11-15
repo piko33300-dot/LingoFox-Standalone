@@ -85,8 +85,15 @@ export async function streamChat(req: ChatRequest): Promise<AsyncIterable<string
       yield* gen;
     })();
   }
-  const { gatewayStreamChat } = await import("./ai-gateway.server");
-  return gatewayStreamChat(req);
+  const lovableKey = process.env["LOVABLE_API_KEY"]?.trim();
+  if (lovableKey) {
+    const { gatewayStreamChat } = await import("./ai-gateway.server");
+    return gatewayStreamChat(req);
+  }
+  throw new AiError(
+    503,
+    "ai_not_configured: GEMINI_API_KEY is missing. Set GEMINI_API_KEY in your environment variables to enable the AI tutor.",
+  );
 }
 
 /** Transcribes a short recording. */
@@ -105,6 +112,13 @@ export async function transcribe(file: File, language: string): Promise<string> 
     });
     return geminiText(await res.json()).trim();
   }
-  const { gatewayTranscribe } = await import("./ai-gateway.server");
-  return gatewayTranscribe(file, language);
+  const lovableKey = process.env["LOVABLE_API_KEY"]?.trim();
+  if (lovableKey) {
+    const { gatewayTranscribe } = await import("./ai-gateway.server");
+    return gatewayTranscribe(file, language);
+  }
+  throw new AiError(
+    503,
+    "ai_not_configured: GEMINI_API_KEY is missing. Set GEMINI_API_KEY in your environment variables to enable audio transcription.",
+  );
 }
