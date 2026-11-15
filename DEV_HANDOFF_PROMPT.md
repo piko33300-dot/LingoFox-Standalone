@@ -49,7 +49,7 @@ PORT=3000
 ```bash
 npm install        # Install all dependencies
 npm run dev        # Start TanStack Start development server
-npm test           # Run 225 Vitest unit & integration tests
+npm test           # Run 229 Vitest unit & integration tests
 npm run build      # Compile production client & SSR server
 ```
 
@@ -83,3 +83,8 @@ npx cap open ios
 - **Monthly Fox Challenge**: 20-quest monthly challenge with 3 tier badges (Bronze Adventurer, Silver Champion, Golden Fox Master) awarding trophies and gems.
 - **Interactive Quests Hub (`/quests`)**: Full page with reactive Fox Mascot animations, real-time claim triggers, celebratory sound effects, and midnight countdown.
 - **Home Integration (`QuestsCard.tsx`)**: Prominent quest card integrated directly into the learning path (`/learn`) with instant status overview.
+
+- **Reliable Offline-to-Online Sync & Anti-Double Claim (`src/lib/account.ts`, `src/lib/quests.ts`)**:
+  - Global idempotency verification (`isQuestClaimed`) preventing any quest reward from ever being claimed twice, regardless of date boundaries.
+  - Deterministic multi-device reward reconciliation in `mergeProgress`, accurately preserving offline rewards without duplication.
+  - Automatic reconnection sync listener (`online`, `visibilitychange`) with concurrency mutex and real-time UI status (`useSyncStatus`).

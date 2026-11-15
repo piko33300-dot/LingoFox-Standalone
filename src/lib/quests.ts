@@ -1,4 +1,5 @@
-import { dayKey, type Progress } from "./progress-store";
+import { dayKey } from "./streak";
+import type { Progress } from "./progress-store";
 
 export type QuestKind = "xp" | "lessons" | "mastery";
 
@@ -68,6 +69,39 @@ export function getDailyQuestsList(dateKey: string): DailyQuest[] {
   ];
 }
 
+/** Returns all unique claimed quest IDs across all dates in progress. */
+export function getAllClaimedQuests(progress: Progress): Set<string> {
+  const set = new Set<string>();
+  if (!progress.dailyActivity) return set;
+  for (const act of Object.values(progress.dailyActivity)) {
+    if (Array.isArray(act?.claimedQuests)) {
+      for (const qid of act.claimedQuests) {
+        if (typeof qid === "string" && qid.trim()) {
+          set.add(qid);
+        }
+      }
+    }
+  }
+  return set;
+}
+
+/** Checks whether a quest ID has ever been claimed anywhere in progress history. */
+export function isQuestClaimed(progress: Progress, questId: string): boolean {
+  if (!progress.dailyActivity) return false;
+  for (const act of Object.values(progress.dailyActivity)) {
+    if (act?.claimedQuests?.includes(questId)) return true;
+  }
+  return false;
+}
+
+/** Returns fixed deterministic reward values for a quest by its ID prefix or configuration. */
+export function getQuestReward(questId: string): { gems: number; xp: number } | null {
+  if (questId.startsWith("quest-xp-")) return { gems: 15, xp: 10 };
+  if (questId.startsWith("quest-lessons-")) return { gems: 20, xp: 15 };
+  if (questId.startsWith("quest-mastery-")) return { gems: 25, xp: 20 };
+  return null;
+}
+
 /** Evaluates player's real-time progress for all daily quests. */
 export function evaluateDailyQuests(progress: Progress, date: Date = new Date()): QuestProgress[] {
   const dKey = dayKey(date);
@@ -95,7 +129,8 @@ export function evaluateDailyQuests(progress: Progress, date: Date = new Date())
     }
 
     const completed = current >= quest.target;
-    const claimed = act.claimedQuests?.includes(quest.id) ?? false;
+    // Check if claimed specifically in today's record or anywhere globally
+    const claimed = isQuestClaimed(progress, quest.id);
     const percent = Math.min(100, Math.round((current / quest.target) * 100));
 
     return {
@@ -115,15 +150,19 @@ export function evaluateMonthlyChallenge(progress: Progress, date: Date = new Da
   const month = date.getUTCMonth(); // 0-11
   const monthPrefix = `${year}-${String(month + 1).padStart(2, "0")}`;
 
-  let claimedCount = 0;
+  // Use a set of unique claimed quest IDs in the month to guarantee no duplicate count
+  const uniqueMonthQuests = new Set<string>();
   if (progress.dailyActivity) {
     for (const [dKey, act] of Object.entries(progress.dailyActivity)) {
       if (dKey.startsWith(monthPrefix) && Array.isArray(act.claimedQuests)) {
-        claimedCount += act.claimedQuests.length;
+        for (const qid of act.claimedQuests) {
+          if (typeof qid === "string") uniqueMonthQuests.add(qid);
+        }
       }
     }
   }
 
+  const claimedCount = uniqueMonthQuests.size;
   const targetCount = 20;
   const percent = Math.min(100, Math.round((claimedCount / targetCount) * 100));
 

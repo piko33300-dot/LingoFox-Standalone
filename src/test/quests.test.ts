@@ -4,6 +4,9 @@ import {
   evaluateDailyQuests,
   evaluateMonthlyChallenge,
   timeUntilMidnight,
+  isQuestClaimed,
+  getAllClaimedQuests,
+  getQuestReward,
 } from "../lib/quests";
 import {
   initialProgress,
@@ -92,24 +95,103 @@ describe("Daily Quests & Challenges System", () => {
     const quests = evaluateDailyQuests(mockProgress, testDate);
     expect(quests[0].claimed).toBe(true);
     expect(quests[1].claimed).toBe(false);
+    expect(isQuestClaimed(mockProgress, questList[0].id)).toBe(true);
   });
 
-  it("allows claiming quest rewards through progressActions and prevents duplicate claims", () => {
+  it("allows claiming quest rewards through progressActions and strictly prevents duplicate claims", () => {
     const initialGems = progressActions.get().gems;
     const initialXp = progressActions.get().xp;
-    const questId = "test-quest-1";
+    const questId = `quest-xp-${dKey}`;
 
-    const claimed = progressActions.claimQuest(questId, 25, 20);
+    const claimed = progressActions.claimQuest(questId, 15, 10);
     expect(claimed).toBe(true);
 
     const after = progressActions.get();
-    expect(after.gems).toBe(initialGems + 25);
-    expect(after.xp).toBe(initialXp + 20);
+    expect(after.gems).toBe(initialGems + 15);
+    expect(after.xp).toBe(initialXp + 10);
 
-    // Second claim for same quest must fail
-    const secondClaim = progressActions.claimQuest(questId, 25, 20);
+    // Second claim for same quest must return false and NOT increment rewards
+    const secondClaim = progressActions.claimQuest(questId, 15, 10);
     expect(secondClaim).toBe(false);
     expect(progressActions.get().gems).toBe(after.gems);
+    expect(progressActions.get().xp).toBe(after.xp);
+  });
+
+  it("prevents double-counting when merging two states that both claimed the same quest", () => {
+    const questId = `quest-xp-${dKey}`;
+    // Base cloud state has 100 gems, 50 XP, and claimed questId
+    const cloudProgress: Progress = {
+      ...initialProgress,
+      gems: 115,
+      xp: 60,
+      dailyActivity: {
+        [dKey]: {
+          lessons: 1,
+          perfectLessons: 0,
+          practices: 0,
+          stories: 0,
+          claimedQuests: [questId],
+        },
+      },
+    };
+
+    // Offline local state also claimed the same questId
+    const localProgress: Progress = {
+      ...initialProgress,
+      gems: 115,
+      xp: 60,
+      dailyActivity: {
+        [dKey]: {
+          lessons: 1,
+          perfectLessons: 0,
+          practices: 0,
+          stories: 0,
+          claimedQuests: [questId],
+        },
+      },
+    };
+
+    const merged = mergeProgress(localProgress, cloudProgress);
+    // Gems and XP must NOT be doubled (must remain 115 and 60, not 130 and 70)
+    expect(merged.gems).toBe(115);
+    expect(merged.xp).toBe(60);
+    expect(merged.dailyActivity[dKey].claimedQuests).toEqual([questId]);
+  });
+
+  it("reconciles different quest claims from two devices without losing any reward or double counting", () => {
+    const q1 = `quest-xp-${dKey}`; // +15 gems, +10 XP
+    const q2 = `quest-lessons-${dKey}`; // +20 gems, +15 XP
+
+    // Device A (offline) claimed q1 on top of 100 gems / 50 XP baseline
+    const deviceA: Progress = {
+      ...initialProgress,
+      gems: 115,
+      xp: 60,
+      dailyActivity: {
+        [dKey]: { lessons: 2, perfectLessons: 0, practices: 0, stories: 0, claimedQuests: [q1] },
+      },
+    };
+
+    // Device B (online) claimed q2 on top of 100 gems / 50 XP baseline
+    const deviceB: Progress = {
+      ...initialProgress,
+      gems: 120,
+      xp: 65,
+      dailyActivity: {
+        [dKey]: { lessons: 2, perfectLessons: 0, practices: 0, stories: 0, claimedQuests: [q2] },
+      },
+    };
+
+    const merged = mergeProgress(deviceA, deviceB);
+    // Total gems should be base 100 + 15 (q1) + 20 (q2) = 135 gems!
+    // Total XP should be base 50 + 10 (q1) + 15 (q2) = 75 XP!
+    expect(merged.gems).toBe(135);
+    expect(merged.xp).toBe(75);
+    expect(merged.dailyActivity[dKey].claimedQuests).toEqual(expect.arrayContaining([q1, q2]));
+
+    // Neither quest can be claimed again
+    expect(isQuestClaimed(merged, q1)).toBe(true);
+    expect(isQuestClaimed(merged, q2)).toBe(true);
   });
 
   it("updates dailyActivity automatically when completing lessons and practice", () => {
@@ -129,11 +211,11 @@ describe("Daily Quests & Challenges System", () => {
     expect(p.dailyActivity[todayKey]?.practices).toBe(2);
   });
 
-  it("computes monthly challenge tier and progress correctly", () => {
+  it("computes monthly challenge tier and progress correctly without duplicate counting", () => {
     const mockProgress: Progress = {
       ...initialProgress,
       dailyActivity: {
-        "2026-11-01": { lessons: 1, perfectLessons: 0, practices: 0, stories: 0, claimedQuests: ["q1", "q2"] },
+        "2026-11-01": { lessons: 1, perfectLessons: 0, practices: 0, stories: 0, claimedQuests: ["q1", "q2", "q2"] },
         "2026-11-02": { lessons: 1, perfectLessons: 0, practices: 0, stories: 0, claimedQuests: ["q3", "q4", "q5"] },
         "2026-11-03": { lessons: 1, perfectLessons: 0, practices: 0, stories: 0, claimedQuests: ["q6", "q7", "q8"] },
         "2026-11-04": { lessons: 1, perfectLessons: 0, practices: 0, stories: 0, claimedQuests: ["q9", "q10", "q11", "q12"] },
@@ -141,6 +223,7 @@ describe("Daily Quests & Challenges System", () => {
     };
 
     const monthly = evaluateMonthlyChallenge(mockProgress, testDate);
+    // 12 unique quests (q2 duplicate safely ignored by Set)
     expect(monthly.claimedCount).toBe(12);
     expect(monthly.targetCount).toBe(20);
     expect(monthly.percent).toBe(60);
@@ -171,6 +254,25 @@ describe("Daily Quests & Challenges System", () => {
     expect(merged.dailyActivity["2026-11-15"].lessons).toBe(3);
     expect(merged.dailyActivity["2026-11-15"].practices).toBe(2);
     expect(merged.dailyActivity["2026-11-15"].claimedQuests).toEqual(expect.arrayContaining(["q1", "q2"]));
+  });
+
+  it("identifies quest rewards deterministically", () => {
+    expect(getQuestReward("quest-xp-2026-11-15")).toEqual({ gems: 15, xp: 10 });
+    expect(getQuestReward("quest-lessons-2026-11-15")).toEqual({ gems: 20, xp: 15 });
+    expect(getQuestReward("quest-mastery-2026-11-15")).toEqual({ gems: 25, xp: 20 });
+    expect(getQuestReward("unknown-quest-id")).toBeNull();
+  });
+
+  it("extracts all unique claimed quests across multiple days", () => {
+    const mock: Progress = {
+      ...initialProgress,
+      dailyActivity: {
+        "2026-11-14": { lessons: 1, perfectLessons: 0, practices: 0, stories: 0, claimedQuests: ["q-a", "q-b"] },
+        "2026-11-15": { lessons: 1, perfectLessons: 0, practices: 0, stories: 0, claimedQuests: ["q-b", "q-c"] },
+      },
+    };
+    const all = getAllClaimedQuests(mock);
+    expect(Array.from(all).sort()).toEqual(["q-a", "q-b", "q-c"]);
   });
 
   it("calculates time until midnight UTC without throwing", () => {

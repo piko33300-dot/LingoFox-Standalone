@@ -15,6 +15,7 @@ import {
 import { FREEZE_COST, MAX_FREEZES, dayKey, displayStreak, freezesUsed, nextStreak } from "./streak";
 import { mergeReview, recordReview, sanitizeReview, type ReviewState } from "./review";
 import { isStoryId, storyReward } from "./stories";
+import { isQuestClaimed, getAllClaimedQuests, getQuestReward } from "./quests";
 
 export type DailyActivity = {
   lessons: number;
@@ -160,8 +161,30 @@ export function mergeProgress(a: Progress, b: Progress): Progress {
     };
   }
 
+  // Double-claim prevention & deterministic quest reward reconciliation
+  const claimedInBase = getAllClaimedQuests(base);
+  const claimedInOther = getAllClaimedQuests(other);
+
+  let bonusGemsFromOther = 0;
+  let bonusXpFromOther = 0;
+  for (const qid of claimedInOther) {
+    if (!claimedInBase.has(qid)) {
+      const rew = getQuestReward(qid);
+      if (rew) {
+        bonusGemsFromOther += rew.gems;
+        bonusXpFromOther += rew.xp;
+      }
+    }
+  }
+
+  const mergedGems = Math.max(base.gems, other.gems) + bonusGemsFromOther;
+  const mergedXp = Math.max(base.xp, other.xp) + bonusXpFromOther;
+
   return {
     ...base,
+    xp: mergedXp,
+    gems: mergedGems,
+    hearts: Math.max(a.hearts, b.hearts),
     streak: Math.max(a.streak, b.streak),
     longestStreak: Math.max(a.longestStreak, b.longestStreak, a.streak, b.streak),
     lastActiveDate,
@@ -328,6 +351,10 @@ export const progressActions = {
   claimQuest(questId: string, gemReward: number, xpReward: number): boolean {
     const today = new Date();
     const t = dayKey(today);
+
+    // Global protection: check if quest has ever been claimed across all dates
+    if (isQuestClaimed(state, questId)) return false;
+
     const act = state.dailyActivity?.[t] ?? { lessons: 0, perfectLessons: 0, practices: 0, stories: 0, claimedQuests: [] };
     if (act.claimedQuests.includes(questId)) return false;
 

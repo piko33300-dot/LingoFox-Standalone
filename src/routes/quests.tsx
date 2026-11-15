@@ -12,6 +12,9 @@ import {
   ArrowLeft,
   Flame,
   Award,
+  Cloud,
+  CloudOff,
+  RefreshCw,
 } from "lucide-react";
 import { toast } from "sonner";
 import { TopBar } from "@/components/lingo/TopBar";
@@ -23,6 +26,7 @@ import {
   evaluateMonthlyChallenge,
   timeUntilMidnight,
 } from "@/lib/quests";
+import { useSyncStatus, syncNow } from "@/lib/account";
 import { playSound } from "@/lib/sound";
 import { useT } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
@@ -33,7 +37,7 @@ export const Route = createFileRoute("/quests")({
       { title: "المهام والتحديات اليومية — LingoFox" },
       { name: "description", content: "أكمل المهام اليومية مع ثعلب اللغات لكسب الجواهر ونقاط الخبرة وشارات الإنجاز." },
       { property: "og:title", content: "المهام والتحديات اليومية — LingoFox" },
-      { property: "og:description", content: "تحدَّ نفسك يومياً واكسب مكافآت مضاعفة." },
+      { property: "og:description", content: "تحدَّ نفسك يومياً واكسب مكافآت مضاعفة مع مزامنة سحابية موثوقة." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
@@ -44,6 +48,7 @@ export const Route = createFileRoute("/quests")({
 function QuestsPage() {
   const p = useProgress();
   const { t, dir } = useT();
+  const sync = useSyncStatus();
 
   const [timeLeft, setTimeLeft] = useState(() => timeUntilMidnight());
 
@@ -76,11 +81,15 @@ function QuestsPage() {
     ? t("questCompleted")
     : t("questsHeroEncourage");
 
-  const handleClaim = (questId: string, gems: number, xp: number) => {
+  const handleClaim = async (questId: string, gems: number, xp: number) => {
     const ok = progressActions.claimQuest(questId, gems, xp);
     if (ok) {
       playSound("complete");
       toast.success(t("questClaimedToast", { gems, xp }));
+      void syncNow();
+    } else {
+      playSound("tap");
+      toast.info(t("questAlreadyClaimed"));
     }
   };
 
@@ -122,14 +131,52 @@ function QuestsPage() {
                 {mascotSpeech}
               </p>
 
-              {/* Reset Timer badge */}
-              <div className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-muted/80 px-3 py-1 text-xs font-semibold text-muted-foreground">
-                <Clock className="size-3.5" />
-                <span>
-                  {t("questTimeLeft", {
-                    time: `${timeLeft.hours}h ${timeLeft.minutes}m`,
-                  })}
-                </span>
+              {/* Reset Timer badge & Cloud Sync Status */}
+              <div className="mt-3 flex flex-wrap items-center justify-center sm:justify-start gap-2">
+                <div className="inline-flex items-center gap-1.5 rounded-xl bg-muted/80 px-3 py-1 text-xs font-semibold text-muted-foreground">
+                  <Clock className="size-3.5" />
+                  <span>
+                    {t("questTimeLeft", {
+                      time: `${timeLeft.hours}h ${timeLeft.minutes}m`,
+                    })}
+                  </span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const ok = await syncNow();
+                    if (ok) toast.success(t("syncSuccessToast"));
+                  }}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 rounded-xl px-3 py-1 text-xs font-semibold transition-colors cursor-pointer",
+                    sync.status === "syncing"
+                      ? "bg-primary/10 text-primary"
+                      : !sync.isOnline
+                      ? "bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                      : sync.hasPendingSync
+                      ? "bg-ember/15 text-ember hover:bg-ember/25"
+                      : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                  )}
+                  title={sync.isOnline ? t("syncStatusOnline") : t("syncStatusOffline")}
+                >
+                  {sync.status === "syncing" ? (
+                    <>
+                      <RefreshCw className="size-3.5 animate-spin" />
+                      <span>{t("syncStatusSyncing")}</span>
+                    </>
+                  ) : !sync.isOnline ? (
+                    <>
+                      <CloudOff className="size-3.5" />
+                      <span>{t("syncStatusOffline")}</span>
+                    </>
+                  ) : (
+                    <>
+                      <Cloud className="size-3.5" />
+                      <span>{sync.hasPendingSync ? t("syncNow") : t("syncStatusOnline")}</span>
+                    </>
+                  )}
+                </button>
               </div>
             </div>
           </div>
