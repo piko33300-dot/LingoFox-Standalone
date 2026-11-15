@@ -49,7 +49,7 @@ PORT=3000
 ```bash
 npm install        # Install all dependencies
 npm run dev        # Start TanStack Start development server
-npm test           # Run 200+ Vitest unit & integration tests
+npm test           # Run 225 Vitest unit & integration tests
 npm run build      # Compile production client & SSR server
 ```
 
@@ -76,3 +76,10 @@ npx cap open ios
 - **Match Madness (60s Timed Challenge)**: High-energy word-matching mini-game that challenges learners against the clock with combo sounds, animated feedback, and XP/gems rewards.
 - **Vocabulary Vault**: Searchable repository of all vocabulary introduced in the course with native voice pronunciation (`speak()`) and unit tags.
 - **Mobile Navigation**: 5-tab BottomNav highlighting direct access to the Practice Hub.
+
+
+### 5. Daily Quests & Monthly Challenge System (V1.1 Milestone)
+- **Daily Quests Engine (`src/lib/quests.ts`)**: 3 deterministic rotating daily missions (XP Accumulator, Lesson/Drill Explorer, Mastery Challenge) tracking player activity with auto-reset timers.
+- **Monthly Fox Challenge**: 20-quest monthly challenge with 3 tier badges (Bronze Adventurer, Silver Champion, Golden Fox Master) awarding trophies and gems.
+- **Interactive Quests Hub (`/quests`)**: Full page with reactive Fox Mascot animations, real-time claim triggers, celebratory sound effects, and midnight countdown.
+- **Home Integration (`QuestsCard.tsx`)**: Prominent quest card integrated directly into the learning path (`/learn`) with instant status overview.
