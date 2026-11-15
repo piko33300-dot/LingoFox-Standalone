@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useDeferredValue } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   Flame,
@@ -6,6 +6,7 @@ import {
   Repeat,
   Zap,
   Volume2,
+  VolumeX,
   Search,
   ArrowRight,
   BookOpen,
@@ -15,12 +16,13 @@ import {
   RotateCcw,
   CheckCircle2,
   XCircle,
+  Filter,
 } from "lucide-react";
 import { getCourse, getCourseVocabulary, MAX_HEARTS, type Course, type VocabItem } from "@/lib/lessons";
 import { dayKey, progressActions, useProgress } from "@/lib/progress-store";
 import { pickPractice, pickDrillSession } from "@/lib/review";
 import { useT } from "@/lib/i18n";
-import { LOCALE, speak } from "@/lib/speech";
+import { LOCALE, speak, stopSpeaking, prewarmSpeech } from "@/lib/speech";
 import { playSound } from "@/lib/sound";
 import { Quiz, type PracticeSession } from "@/components/lingo/Quiz";
 import { FoxMascot } from "@/components/lingo/FoxMascot";
@@ -49,11 +51,17 @@ function PracticeRoute() {
   const [mode, setMode] = useState<PracticeMode>("hub");
   const [session, setSession] = useState<PracticeSession | null>(null);
 
+  // Prewarm speech synthesis voices on initial mount
+  useEffect(() => {
+    prewarmSpeech();
+  }, []);
+
   const course = getCourse(p.course) ?? getCourse("en")!;
   const srsDueItems = useMemo(() => {
     return pickPractice(p.review, p.completed, course.id, dayKey(new Date()));
   }, [p.review, p.completed, course.id]);
 
+  // Memoized vocabulary from cached course dictionary
   const vocabulary = useMemo(() => {
     return getCourseVocabulary(course);
   }, [course]);
@@ -488,7 +496,7 @@ function MatchMadnessView({
   );
 }
 
-/** ---------------- Vocabulary Vault View ---------------- */
+/** ---------------- Optimized Vocabulary Vault View ---------------- */
 function VocabularyVaultView({
   course,
   vocabulary,
@@ -500,18 +508,49 @@ function VocabularyVaultView({
 }) {
   const { t, loc } = useT();
   const [search, setSearch] = useState("");
+  const [speakingWord, setSpeakingWord] = useState<string | null>(null);
+  const [displayLimit, setDisplayLimit] = useState(30);
+
+  // useDeferredValue keeps input typing silky smooth on mobile devices
+  const deferredSearch = useDeferredValue(search);
+
+  // Prewarm speech voices when entering Vocabulary Vault
+  useEffect(() => {
+    prewarmSpeech();
+    return () => {
+      stopSpeaking();
+    };
+  }, []);
 
   const filtered = useMemo(() => {
-    if (!search.trim()) return vocabulary;
-    const q = search.trim().toLowerCase();
+    if (!deferredSearch.trim()) return vocabulary;
+    const q = deferredSearch.trim().toLowerCase();
     return vocabulary.filter(
       (v) => v.word.toLowerCase().includes(q) || v.translation.toLowerCase().includes(q),
     );
-  }, [vocabulary, search]);
+  }, [vocabulary, deferredSearch]);
+
+  const visibleItems = useMemo(() => {
+    return filtered.slice(0, displayLimit);
+  }, [filtered, displayLimit]);
 
   const handleSpeak = (word: string) => {
+    if (speakingWord === word) {
+      stopSpeaking();
+      setSpeakingWord(null);
+      return;
+    }
+
     playSound("tap");
-    speak(word, LOCALE[course.target]);
+    setSpeakingWord(word);
+    speak(word, LOCALE[course.target] || course.target, {
+      onEnd: () => setSpeakingWord(null),
+    });
+  };
+
+  const handleLoadMore = () => {
+    playSound("tap");
+    setDisplayLimit((prev) => prev + 30);
   };
 
   return (
@@ -550,38 +589,62 @@ function VocabularyVaultView({
         />
       </div>
 
-      {/* Words List */}
+      {/* Words List with Progressive Loading */}
       <div className="flex-1 space-y-2.5 overflow-y-auto pb-10">
-        {filtered.length > 0 ? (
-          filtered.map((item, idx) => (
-            <div
-              key={`${item.word}-${idx}`}
-              className="flex items-center justify-between gap-3 rounded-2xl border-2 border-border/80 bg-card p-3.5 shadow-soft transition-all hover:border-primary/40"
-            >
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <span className="font-display text-base font-bold text-foreground">
-                    {item.word}
-                  </span>
-                  <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
-                    {loc(item.unitTitle)}
-                  </span>
-                </div>
-                <p className="text-xs font-medium text-muted-foreground mt-0.5">
-                  {item.translation}
-                </p>
-              </div>
+        {visibleItems.length > 0 ? (
+          <>
+            {visibleItems.map((item, idx) => {
+              const isPlaying = speakingWord === item.word;
+              return (
+                <div
+                  key={`${item.word}-${idx}`}
+                  className={`flex items-center justify-between gap-3 rounded-2xl border-2 bg-card p-3.5 shadow-soft transition-all ${
+                    isPlaying ? "border-primary ring-2 ring-primary/20" : "border-border/80 hover:border-primary/40"
+                  }`}
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-display text-base font-bold text-foreground">
+                        {item.word}
+                      </span>
+                      <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
+                        {loc(item.unitTitle)}
+                      </span>
+                    </div>
+                    <p className="text-xs font-medium text-muted-foreground mt-0.5">
+                      {item.translation}
+                    </p>
+                  </div>
 
-              <button
-                type="button"
-                onClick={() => handleSpeak(item.word)}
-                className="grid size-9 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary transition-transform hover:scale-105 active:scale-95"
-                aria-label={item.word}
-              >
-                <Volume2 className="size-4" />
-              </button>
-            </div>
-          ))
+                  <button
+                    type="button"
+                    onClick={() => handleSpeak(item.word)}
+                    className={`grid size-9 shrink-0 place-items-center rounded-xl transition-all ${
+                      isPlaying
+                        ? "bg-primary text-primary-foreground scale-105 animate-pulse"
+                        : "bg-primary/10 text-primary hover:scale-105 active:scale-95"
+                    }`}
+                    aria-label={item.word}
+                  >
+                    <Volume2 className="size-4" />
+                  </button>
+                </div>
+              );
+            })}
+
+            {/* Load More Button for large lists */}
+            {filtered.length > displayLimit && (
+              <div className="pt-2 text-center">
+                <button
+                  type="button"
+                  onClick={handleLoadMore}
+                  className="btn-3d inline-flex items-center gap-2 rounded-2xl border-2 border-border bg-card px-4 py-2 font-display text-xs font-bold text-muted-foreground hover:text-foreground shadow-soft"
+                >
+                  عرض المزيد ({filtered.length - displayLimit} متبقية)
+                </button>
+              </div>
+            )}
+          </>
         ) : (
           <div className="py-12 text-center text-muted-foreground">
             <p className="font-display font-semibold">{t("vocabEmpty")}</p>

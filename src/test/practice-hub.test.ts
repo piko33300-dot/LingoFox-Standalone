@@ -14,6 +14,13 @@ describe("Practice Hub & Vocabulary Extractor", () => {
     }
   });
 
+  it("caches vocabulary lookups across multiple calls for fast O(1) performance", () => {
+    const es = getCourse("es")!;
+    const v1 = getCourseVocabulary(es);
+    const v2 = getCourseVocabulary(es);
+    expect(v1).toBe(v2); // Exactly same cached object reference in memory
+  });
+
   it("extracts comprehensive vocabulary for English course", () => {
     const en = getCourse("en")!;
     const vocab = getCourseVocabulary(en);

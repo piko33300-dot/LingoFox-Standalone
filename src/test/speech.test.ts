@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { cleanTextForSpeech, LOCALE } from "../lib/speech";
+import { cleanTextForSpeech, LOCALE, prewarmSpeech, isSpeaking, stopSpeaking } from "../lib/speech";
 import { parseTutorContent } from "../lib/tutor";
 
 describe("speech helpers", () => {
@@ -23,6 +23,13 @@ describe("speech helpers", () => {
     expect(LOCALE.tr).toBe("tr-TR");
     expect(LOCALE.de).toBe("de-DE");
   });
+
+  it("safely prewarms and queries speech synthesis status without throwing", () => {
+    expect(() => prewarmSpeech()).not.toThrow();
+    expect(typeof isSpeaking()).toBe("boolean");
+    expect(() => stopSpeaking()).not.toThrow();
+  });
+
 });
 
 describe("parseTutorContent", () => {

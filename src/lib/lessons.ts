@@ -337,7 +337,12 @@ export type VocabItem = {
   unitTitle: Localized;
 };
 
+const vocabCache = new Map<CourseId, VocabItem[]>();
+
 export function getCourseVocabulary(course: Course): VocabItem[] {
+  const cached = vocabCache.get(course.id);
+  if (cached) return cached;
+
   const seen = new Set<string>();
   const items: VocabItem[] = [];
 
@@ -384,5 +389,6 @@ export function getCourseVocabulary(course: Course): VocabItem[] {
       }
     }
   }
+  vocabCache.set(course.id, items);
   return items;
 }
