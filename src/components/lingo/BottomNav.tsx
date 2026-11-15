@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
-import { BookOpen, Home, MessageCircle, Repeat, Trophy, User } from "lucide-react";
+import { BookOpen, Home, MessageCircle, Repeat, Trophy, User, Sparkles } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import logoBadge from "@/assets/logo-badge.png";
 
@@ -15,6 +15,7 @@ const ITEMS = [
 /** Extra destinations shown only in the wide-screen side rail. */
 const WIDE_ITEMS = [
   { to: "/stories", icon: BookOpen, key: "storiesTitle" },
+  { to: "/quests", icon: Sparkles, key: "quests" },
 ] as const;
 
 /** Bottom tab bar on phones; a side rail on wide screens. */

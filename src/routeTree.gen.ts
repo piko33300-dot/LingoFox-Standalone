@@ -19,6 +19,7 @@ import { Route as PlacementRouteImport } from './routes/placement'
 import { Route as PracticeRouteImport } from './routes/practice'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ProfileRouteImport } from './routes/profile'
+import { Route as QuestsRouteImport } from './routes/quests'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as SpeakRouteImport } from './routes/speak'
 import { Route as StoriesRouteImport } from './routes/stories'
@@ -79,6 +80,11 @@ const ProfileRoute = ProfileRouteImport.update({
   path: '/profile',
   getParentRoute: () => rootRouteImport,
 } as any)
+const QuestsRoute = QuestsRouteImport.update({
+  id: '/quests',
+  path: '/quests',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
   path: '/reset-password',
@@ -136,6 +142,7 @@ export interface FileRoutesByFullPath {
   '/practice': typeof PracticeRoute
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
+  '/quests': typeof QuestsRoute
   '/reset-password': typeof ResetPasswordRoute
   '/speak': typeof SpeakRoute
   '/stories': typeof StoriesRoute
@@ -157,6 +164,7 @@ export interface FileRoutesByTo {
   '/practice': typeof PracticeRoute
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
+  '/quests': typeof QuestsRoute
   '/reset-password': typeof ResetPasswordRoute
   '/speak': typeof SpeakRoute
   '/stories': typeof StoriesRoute
@@ -179,6 +187,7 @@ export interface FileRoutesById {
   '/practice': typeof PracticeRoute
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
+  '/quests': typeof QuestsRoute
   '/reset-password': typeof ResetPasswordRoute
   '/speak': typeof SpeakRoute
   '/stories': typeof StoriesRoute
@@ -202,6 +211,7 @@ export interface FileRouteTypes {
     | '/practice'
     | '/privacy'
     | '/profile'
+    | '/quests'
     | '/reset-password'
     | '/speak'
     | '/stories'
@@ -223,6 +233,7 @@ export interface FileRouteTypes {
     | '/practice'
     | '/privacy'
     | '/profile'
+    | '/quests'
     | '/reset-password'
     | '/speak'
     | '/stories'
@@ -244,6 +255,7 @@ export interface FileRouteTypes {
     | '/practice'
     | '/privacy'
     | '/profile'
+    | '/quests'
     | '/reset-password'
     | '/speak'
     | '/stories'
@@ -266,6 +278,7 @@ export interface RootRouteChildren {
   PracticeRoute: typeof PracticeRoute
   PrivacyRoute: typeof PrivacyRoute
   ProfileRoute: typeof ProfileRoute
+  QuestsRoute: typeof QuestsRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   SpeakRoute: typeof SpeakRoute
   StoriesRoute: typeof StoriesRoute
@@ -349,6 +362,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProfileRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/quests': {
+      id: '/quests'
+      path: '/quests'
+      fullPath: '/quests'
+      preLoaderRoute: typeof QuestsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/reset-password': {
       id: '/reset-password'
       path: '/reset-password'
@@ -426,6 +446,7 @@ const rootRouteChildren: RootRouteChildren = {
   PracticeRoute: PracticeRoute,
   PrivacyRoute: PrivacyRoute,
   ProfileRoute: ProfileRoute,
+  QuestsRoute: QuestsRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   SpeakRoute: SpeakRoute,
   StoriesRoute: StoriesRoute,

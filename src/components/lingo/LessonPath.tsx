@@ -9,6 +9,7 @@ import fox from "@/assets/fox.png";
 import { AdBanner } from "./AdBanner";
 import { DailyGoalCard } from "./DailyGoal";
 import { PracticeCard } from "./PracticeCard";
+import { QuestsCard } from "./QuestsCard";
 import { SkillCards } from "./SkillCards";
 
 const OFFSETS = [0, 48, 72, 48, 0, -48, -72, -48];
@@ -24,6 +25,7 @@ export function LessonPath() {
     <div className="mx-auto max-w-md px-4 pb-8 pt-4">
       <DailyGoalCard p={p} />
       <PracticeCard p={p} />
+      <QuestsCard p={p} />
       <SkillCards />
       {p.completed.length <= 1 && (
         <div className="mt-4 flex items-center justify-between gap-3 rounded-2xl border-2 border-primary/30 bg-primary/10 p-3.5 shadow-sm">

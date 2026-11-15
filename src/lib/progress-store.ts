@@ -16,6 +16,14 @@ import { FREEZE_COST, MAX_FREEZES, dayKey, displayStreak, freezesUsed, nextStrea
 import { mergeReview, recordReview, sanitizeReview, type ReviewState } from "./review";
 import { isStoryId, storyReward } from "./stories";
 
+export type DailyActivity = {
+  lessons: number;
+  perfectLessons: number;
+  practices: number;
+  stories: number;
+  claimedQuests: string[];
+};
+
 // Mirrors the `user_progress.data` JSON stored in the cloud for signed-in users.
 export type Progress = {
   xp: number;
@@ -38,6 +46,8 @@ export type Progress = {
   freezes: number;
   /** Story ids read at least once. */
   stories: string[];
+  /** Detailed daily counts for quests & challenges. */
+  dailyActivity: Record<string, DailyActivity>;
 };
 
 export const HEART_REGEN_INTERVAL_MS = 4 * 60 * 60 * 1000;
@@ -60,6 +70,7 @@ export const initialProgress: Progress = {
   review: {},
   freezes: 0,
   stories: [],
+  dailyActivity: {},
 };
 
 let state: Progress = initialProgress;
@@ -101,6 +112,7 @@ export function sanitizeProgress(raw: unknown): Progress {
     review: sanitizeReview(r.review),
     freezes: Math.max(0, Math.min(MAX_FREEZES, Math.floor(num(r.freezes, 0)))),
     stories: Array.isArray(r.stories) ? Array.from(new Set(r.stories.filter(isStoryId))) : [],
+    dailyActivity: r.dailyActivity && typeof r.dailyActivity === "object" ? (r.dailyActivity as Record<string, DailyActivity>) : {},
   };
 }
 
@@ -135,6 +147,19 @@ export function mergeProgress(a: Progress, b: Progress): Progress {
   const adsByDay: Record<string, number> = { ...other.adsByDay };
   for (const [d, v] of Object.entries(base.adsByDay)) adsByDay[d] = Math.max(v, adsByDay[d] ?? 0);
   const lastActiveDate = [a.lastActiveDate, b.lastActiveDate].filter(Boolean).sort().pop() ?? null;
+
+  const dailyActivity: Record<string, DailyActivity> = { ...(other.dailyActivity ?? {}) };
+  for (const [d, v] of Object.entries(base.dailyActivity ?? {})) {
+    const existing = dailyActivity[d] ?? { lessons: 0, perfectLessons: 0, practices: 0, stories: 0, claimedQuests: [] };
+    dailyActivity[d] = {
+      lessons: Math.max(existing.lessons, v.lessons ?? 0),
+      perfectLessons: Math.max(existing.perfectLessons, v.perfectLessons ?? 0),
+      practices: Math.max(existing.practices, v.practices ?? 0),
+      stories: Math.max(existing.stories, v.stories ?? 0),
+      claimedQuests: Array.from(new Set([...(existing.claimedQuests ?? []), ...(v.claimedQuests ?? [])])),
+    };
+  }
+
   return {
     ...base,
     streak: Math.max(a.streak, b.streak),
@@ -150,6 +175,7 @@ export function mergeProgress(a: Progress, b: Progress): Progress {
     freezes: Math.max(a.freezes, b.freezes),
     stories: Array.from(new Set([...a.stories, ...b.stories])),
     lastHeartLostAt: a.hearts < b.hearts ? a.lastHeartLostAt : b.lastHeartLostAt,
+    dailyActivity,
   };
 }
 
@@ -185,6 +211,14 @@ export const progressActions = {
     const reward = lessonReward(mistakes);
     const used = freezesUsed(state.lastActiveDate, today, state.freezes);
     const streak = nextStreak(state.streak, state.lastActiveDate, today, state.freezes);
+
+    const act = state.dailyActivity?.[t] ?? { lessons: 0, perfectLessons: 0, practices: 0, stories: 0, claimedQuests: [] };
+    const updatedAct: DailyActivity = {
+      ...act,
+      lessons: act.lessons + 1,
+      perfectLessons: act.perfectLessons + (mistakes === 0 ? 1 : 0),
+    };
+
     set({
       ...state,
       freezes: state.freezes - used,
@@ -197,6 +231,7 @@ export const progressActions = {
       lessonsDone: state.lessonsDone + 1,
       perfectLessons: state.perfectLessons + (mistakes === 0 ? 1 : 0),
       completed: state.completed.includes(lessonId) ? state.completed : [...state.completed, lessonId],
+      dailyActivity: { ...(state.dailyActivity ?? {}), [t]: updatedAct },
     });
     return { ...reward, freezeUsed: used };
   },
@@ -214,6 +249,13 @@ export const progressActions = {
     const earnedHeart = state.hearts < MAX_HEARTS;
     const nextHearts = earnedHeart ? state.hearts + 1 : state.hearts;
     const lastHeartLostAt = nextHearts >= MAX_HEARTS ? null : state.lastHeartLostAt;
+
+    const act = state.dailyActivity?.[t] ?? { lessons: 0, perfectLessons: 0, practices: 0, stories: 0, claimedQuests: [] };
+    const updatedAct: DailyActivity = {
+      ...act,
+      practices: act.practices + 1,
+    };
+
     set({
       ...state,
       hearts: nextHearts,
@@ -224,10 +266,10 @@ export const progressActions = {
       longestStreak: Math.max(state.longestStreak, streak),
       lastActiveDate: t,
       xpByDay: { ...state.xpByDay, [t]: (state.xpByDay[t] ?? 0) + XP_PER_PRACTICE },
+      dailyActivity: { ...(state.dailyActivity ?? {}), [t]: updatedAct },
     });
     return { xp: XP_PER_PRACTICE, gems: 0, freezeUsed: used, heartRestored: earnedHeart };
   },
-  /** Finish reading a story: full reward the first time, a smaller one on re-reads. Both keep the streak. */
   completeSpeedChallenge(matches: number) {
     const today = new Date();
     const t = dayKey(today);
@@ -235,6 +277,13 @@ export const progressActions = {
     const streak = nextStreak(state.streak, state.lastActiveDate, today, state.freezes);
     const earnedXp = Math.max(5, matches * 2);
     const earnedGems = matches >= 5 ? Math.floor(matches / 2) : 0;
+
+    const act = state.dailyActivity?.[t] ?? { lessons: 0, perfectLessons: 0, practices: 0, stories: 0, claimedQuests: [] };
+    const updatedAct: DailyActivity = {
+      ...act,
+      practices: act.practices + 1,
+    };
+
     set({
       ...state,
       freezes: state.freezes - used,
@@ -244,6 +293,7 @@ export const progressActions = {
       longestStreak: Math.max(state.longestStreak, streak),
       lastActiveDate: t,
       xpByDay: { ...state.xpByDay, [t]: (state.xpByDay[t] ?? 0) + earnedXp },
+      dailyActivity: { ...(state.dailyActivity ?? {}), [t]: updatedAct },
     });
     return { earnedXp, earnedGems, freezeUsed: used };
   },
@@ -253,6 +303,13 @@ export const progressActions = {
     const reward = storyReward(state.stories.includes(storyId));
     const used = freezesUsed(state.lastActiveDate, today, state.freezes);
     const streak = nextStreak(state.streak, state.lastActiveDate, today, state.freezes);
+
+    const act = state.dailyActivity?.[t] ?? { lessons: 0, perfectLessons: 0, practices: 0, stories: 0, claimedQuests: [] };
+    const updatedAct: DailyActivity = {
+      ...act,
+      stories: act.stories + 1,
+    };
+
     set({
       ...state,
       freezes: state.freezes - used,
@@ -263,8 +320,30 @@ export const progressActions = {
       lastActiveDate: t,
       xpByDay: { ...state.xpByDay, [t]: (state.xpByDay[t] ?? 0) + reward.xp },
       stories: state.stories.includes(storyId) ? state.stories : [...state.stories, storyId],
+      dailyActivity: { ...(state.dailyActivity ?? {}), [t]: updatedAct },
     });
     return { ...reward, freezeUsed: used };
+  },
+  /** Claim a daily quest reward (gives gems and XP, records quest as claimed). */
+  claimQuest(questId: string, gemReward: number, xpReward: number): boolean {
+    const today = new Date();
+    const t = dayKey(today);
+    const act = state.dailyActivity?.[t] ?? { lessons: 0, perfectLessons: 0, practices: 0, stories: 0, claimedQuests: [] };
+    if (act.claimedQuests.includes(questId)) return false;
+
+    const updatedAct: DailyActivity = {
+      ...act,
+      claimedQuests: [...act.claimedQuests, questId],
+    };
+
+    set({
+      ...state,
+      gems: state.gems + gemReward,
+      xp: state.xp + xpReward,
+      xpByDay: { ...state.xpByDay, [t]: (state.xpByDay[t] ?? 0) + xpReward },
+      dailyActivity: { ...(state.dailyActivity ?? {}), [t]: updatedAct },
+    });
+    return true;
   },
   /** Apply placement test outcome: sets course, marks skipped units completed, and awards placement bonus XP. */
   applyPlacement(courseId: CourseId, unitIndex: number, bonusXp: number = 30) {
